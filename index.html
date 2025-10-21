@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crypto Sentiment Dashboard</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #f5f7fa;
+      color: #222;
+      margin: 0;
+      padding: 10px;
+    }
+    h1 {
+      text-align: center;
+      color: #0078d7;
+      font-size: 1.6em;
+      margin: 10px 0;
+    }
+    #sentimentScore {
+      text-align: center;
+      font-size: 2em;
+      margin: 5px 0 20px;
+      font-weight: bold;
+    }
+    #cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 10px;
+      padding: 5px;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .label {
+      font-weight: 600;
+      color: #0078d7;
+      font-size: 1em;
+      margin-bottom: 4px;
+    }
+    .value {
+      font-size: 1.4em;
+      font-weight: 700;
+      margin: 4px 0;
+    }
+    .desc {
+      font-size: 0.85em;
+      color: #555;
+      margin-bottom: 6px;
+    }
+    .action {
+      font-size: 0.9em;
+      font-weight: 600;
+      border-radius: 6px;
+      padding: 4px 8px;
+      display: inline-block;
+      margin-top: 4px;
+    }
+    .bullish { background: #c8f7c5; color: #046b00; }
+    .neutral { background: #e6e6e6; color: #555; }
+    .bearish { background: #f9c0c0; color: #9b0000; }
+    footer {
+      text-align: center;
+      font-size: 0.85em;
+      margin-top: 20px;
+      color: #777;
+    }
+  </style>
+</head>
+<body>
+  <h1>📊 Crypto Market Sentiment Dashboard</h1>
+  <div id="sentimentScore">Loading...</div>
+  <div id="cards"></div>
+  <footer>🔄 Auto-refresh every 10 min • Data: CoinGecko, Binance, Alternative.me</footer>
+
+  <script>
+    async function getFearGreed() {
+      const res = await fetch("https://api.alternative.me/fng/");
+      const data = await res.json();
+      const fng = data.data[0];
+      return { value: +fng.value, label: fng.value_classification };
+    }
+
+    async function getGlobalCrypto() {
+      const res = await fetch("https://api.coingecko.com/api/v3/global");
+      const data = (await res.json()).data;
+      return {
+        btcDominance: data.market_cap_percentage.btc,
+        totalMcap: data.total_market_cap.usd,
+        stablecoins: data.total_market_cap.usdt + data.total_market_cap.usdc + data.total_market_cap.busd
+      };
+    }
+
+    async function getFundingRate() {
+      const res = await fetch("https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&limit=1");
+      const data = await res.json();
+      return parseFloat(data[0].fundingRate) * 100;
+    }
+
+    function computeCompositeScore(fng, funding, btcDom) {
+      const fgScore = fng?.value ?? 50;
+      const fundingScore = 50 - Math.abs((funding ?? 0) * 500);
+      const btcScore = 100 - Math.abs((btcDom - 50) * 2 || 0);
+      return Math.max(0, Math.min(100, (fgScore*0.5 + fundingScore*0.2 + btcScore*0.3)));
+    }
+
+    function moodLabel(score) {
+      if (score < 25) return "😱 Extreme Fear";
+      if (score < 45) return "😟 Fear";
+      if (score < 60) return "😐 Neutral";
+      if (score < 75) return "😊 Greed";
+      return "🚀 Extreme Greed";
+    }
+
+    function getAction(label, value) {
+      label = label.toLowerCase();
+      if (label.includes("fear") || value < 30) return {text: "Enter Market", cls: "bullish"};
+      if (label.includes("greed") || value > 70) return {text: "Take Profit / Exit", cls: "bearish"};
+      return {text: "Hold / Observe", cls: "neutral"};
+    }
+
+    function getTrendArrow(id, newValue) {
+      const prevValue = parseFloat(localStorage.getItem(id));
+      localStorage.setItem(id, newValue);
+      if (isNaN(prevValue)) return "➖";
+      const diff = newValue - prevValue;
+      if (Math.abs(diff) < 0.5) return "➖";
+      return diff > 0 ? "📈" : "📉";
+    }
+
+    async function loadDashboard() {
+      const fng = await getFearGreed();
+      const global = await getGlobalCrypto();
+      const funding = await getFundingRate();
+
+      const score = computeCompositeScore(fng, funding, global.btcDominance);
+      const mood = moodLabel(score);
+
+      document.getElementById("sentimentScore").innerHTML =
+        `🧭 Overall Sentiment: ${score.toFixed(1)} / 100 → <b>${mood}</b>`;
+
+      const indicators = [
+        {
+          id: "fng",
+          name: "Fear & Greed Index",
+          desc: "Overall crypto sentiment from volatility, volume, and social data.",
+          value: fng.value,
+          info: fng.label
+        },
+        {
+          id: "funding",
+          name: "BTC Funding Rate",
+          desc: "Indicates futures market bias (positive = long-biased).",
+          value: funding?.toFixed(4),
+          info: funding > 0 ? "Long-biased" : "Short-biased"
+        },
+        {
+          id: "btcDom",
+          name: "BTC Dominance (%)",
+          desc: "Shows BTC share of total crypto market.",
+          value: global.btcDominance?.toFixed(2),
+          info: "High = Capital in BTC"
+        },
+        {
+          id: "mcap",
+          name: "Total Market Cap (USD)",
+          desc: "Overall cryptocurrency market size.",
+          value: (global.totalMcap / 1e12).toFixed(2),
+          info: "Trillions USD"
+        },
+        {
+          id: "ssr",
+          name: "Stablecoin Ratio (SSR)",
+          desc: "Measures buying power. Lower = More liquidity.",
+          value: (global.totalMcap / global.stablecoins).toFixed(2),
+          info: "Low = High buying power"
+        },
+        {
+          id: "vol",
+          name: "Volatility Proxy",
+          desc: "Based on funding and sentiment dispersion.",
+          value: (Math.abs(funding)*1000 + 30).toFixed(1),
+          info: "High = Unstable market"
+        },
+        {
+          id: "score",
+          name: "Composite Sentiment",
+          desc: "Blended confidence score of market mood.",
+          value: score.toFixed(1),
+          info: mood
+        }
+      ];
+
+      const container = document.getElementById("cards");
+      container.innerHTML = "";
+
+      indicators.forEach(ind => {
+        const act = getAction(ind.info, ind.value);
+        const trend = getTrendArrow(ind.id, parseFloat(ind.value));
+        const div = document.createElement("div");
+        div.className = "card";
+        div.innerHTML = `
+          <div class="label">${ind.name}</div>
+          <div class="value">${trend} ${ind.value ?? "N/A"}</div>
+          <div class="desc">${ind.desc}</div>
+          <div class="action ${act.cls}">${act.text}</div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    loadDashboard();
+    setInterval(loadDashboard, 10 * 60 * 1000);
+  </script>
+</body>
+</html>
