@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Crypto Sentiment Dashboard v13 — Sparklines</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#f6f9fb; --card:#fff; --text:#0e1720; --muted:#65707a; --accent:#0b76d1;
+    --green-tint: rgba(29,161,84,0.08);
+    --red-tint: rgba(214,69,58,0.08);
+    --hold-tint: rgba(66,133,244,0.06);
+    --legend-bg: rgba(13,18,23,0.06);
+    --dark-bg:#071217; --dark-card:#0b1216; --dark-text:#e6eef6;
+    --pad:8px; --gap:6px; --radius:8px; --card-font:13px;
+    font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+  body.dark{background:var(--dark-bg);color:var(--dark-text)}
+
+  .app{max-width:960px;margin:0 auto;padding:8px}
+  header{display:flex;align-items:center;justify-content:space-between;padding:6px;border-radius:8px;position:sticky;top:0;z-index:20;background:rgba(255,255,255,0.9)}
+  body.dark header{background:rgba(6,10,12,0.6)}
+  .brand{display:flex;gap:8px;align-items:center}
+  .brand h1{margin:0;font-size:0.98rem;font-weight:800;color:var(--accent)}
+  .controls{display:flex;gap:6px;align-items:center}
+  select,button,input{font-weight:700;border:0;cursor:pointer;border-radius:8px}
+  .btn-primary{background:var(--accent);color:#fff;padding:6px 8px}
+  .btn-ghost{background:transparent;padding:6px 8px;border:1px solid rgba(0,0,0,0.06)}
+  body.dark .btn-ghost{border:1px solid rgba(255,255,255,0.06)}
+
+  .sentiment{margin:8px 0;text-align:center}
+  #sentScore{font-weight:800;font-size:0.98rem}
+  .bar{width:100%;height:10px;border-radius:999px;background:linear-gradient(90deg,#7db9e8,#f2c94c,#e5534b);position:relative;margin-top:8px}
+  .pointer{position:absolute;top:-6px;width:6px;height:22px;border-radius:3px;background:#111;transform:translateX(-50%);transition:left .8s}
+  body.dark .pointer{background:#fff}
+
+  .main-chart{height:120px;margin-top:6px;margin-bottom:6px}
+
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .card{background:var(--card);border-radius:var(--radius);padding:8px;min-height:92px;box-shadow:0 6px 18px rgba(16,24,40,0.04);font-size:var(--card-font);position:relative}
+  body.dark .card{background:var(--dark-card);box-shadow:none}
+  .label{display:flex;justify-content:space-between;align-items:center;font-weight:800;color:var(--accent);font-size:13px}
+  .value{font-weight:800;font-size:14px;margin-top:6px}
+  .conf{font-size:11px;color:var(--muted);margin-left:6px}
+  .chip{display:inline-block;padding:4px 8px;border-radius:999px;font-weight:800;font-size:12px;margin-top:6px}
+  .chip.buy{background:transparent;color:#1e8a3f;border:1px solid rgba(30,138,63,0.12)}
+  .chip.hold{background:transparent;color:#65707a;border:1px solid rgba(101,112,122,0.08)}
+  .chip.sell{background:transparent;color:#d6453a;border:1px solid rgba(214,69,58,0.08)}
+  .meaning, .insight{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.14}
+  .meaning b, .insight b{font-weight:700;color:inherit}
+
+  /* sparkline */
+  .spark-wrap{height:40px;margin-top:6px;margin-bottom:4px}
+  canvas.spark{width:100%;height:40px;display:block}
+
+  /* color card tints */
+  .card.buy-bg{background:linear-gradient(180deg,var(--green-tint),rgba(255,255,255,0));}
+  .card.sell-bg{background:linear-gradient(180deg,var(--red-tint),rgba(255,255,255,0));}
+  .card.hold-bg{background:linear-gradient(180deg,var(--hold-tint),rgba(255,255,255,0));}
+
+  .summary{margin-top:8px;border-radius:8px;padding:6px;background:rgba(0,0,0,0.02);font-size:13px}
+  body.dark .summary{background:rgba(255,255,255,0.02)}
+  .summary-row{display:flex;justify-content:space-between;gap:8px;padding:4px 6px;border-radius:6px;font-weight:700}
+  .summary-row.buy{background:rgba(29,161,84,0.06);color:#1e8a3f}
+  .summary-row.sell{background:rgba(214,69,58,0.06);color:#d6453a}
+  .summary-row.hold{color:var(--muted)}
+
+  .settings-toggle{display:flex;justify-content:center;margin:10px 0}
+  .settings-panel{background:var(--card);border-radius:8px;padding:8px;margin-top:6px;box-shadow:0 6px 18px rgba(16,24,40,0.04)}
+  body.dark .settings-panel{background:var(--dark-card);box-shadow:none}
+  .settings-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(0,0,0,0.03)}
+  .settings-row label{min-width:170px;font-weight:700;font-size:13px}
+  .small{font-size:12px;color:var(--muted)}
+  #timestamp{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
+
+  .legend-box{margin-top:8px;border-radius:8px;padding:8px;background:var(--legend-bg);display:flex;gap:12px;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+  .legend-line{width:28px;height:6px;border-radius:4px;display:inline-block}
+  .legend-green{background:linear-gradient(90deg,#2ea44f,#8fe39b)}
+  .legend-red{background:linear-gradient(90deg,#d6453a,#f39b91)}
+  .legend-gray{background:linear-gradient(90deg,#9aa5b1,#dbe7ff)}
+
+  @media(max-width:900px){ .grid{grid-template-columns:repeat(2,1fr)} }
+  @media(max-width:640px){ .grid{grid-template-columns:1fr} header{padding:6px} .label{font-size:14px} .value{font-size:15px} .settings-row label{min-width:110px;font-size:13px} }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden><rect width="24" height="24" rx="5" fill="#0b76d1"/><path d="M5 15l3-6 3 12 3-9 3 6" stroke="#fff" stroke-width="1.1"/></svg>
+        <h1>Crypto Sentiment — v13 (Sparklines)</h1>
+      </div>
+      <div class="controls">
+        <select id="refresh"><option value="5">5m</option><option value="10" selected>10m</option><option value="30">30m</option></select>
+        <button id="darkToggle" class="btn-ghost" title="Toggle theme">🌙</button>
+        <button id="refreshNow" class="btn-primary" title="Refresh now">↻</button>
+      </div>
+    </header>
+
+    <div id="alertArea" aria-live="polite"></div>
+
+    <section class="sentiment" aria-live="polite">
+      <div id="sentScore">Loading…</div>
+      <div class="bar"><div id="ptr" class="pointer" style="left:50%"></div></div>
+    </section>
+
+    <div class="main-chart" style="height:120px"><canvas id="mainChart" style="width:100%;height:100%"></canvas></div>
+
+    <section id="cards" class="grid" aria-live="polite"></section>
+
+    <div id="summary" class="summary" style="display:none" aria-live="polite"></div>
+
+    <div id="timestamp">⏰ Last updated: -- (Malaysia GMT+8)</div>
+
+    <div class="settings-toggle">
+      <button id="settingsToggle" class="btn-ghost">⚙️ Adjust Indicator Settings</button>
+    </div>
+
+    <div id="settingsPanel" class="settings-panel" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><strong>Indicator Settings & Weights</strong> <span class="small">(saved locally)</span></div>
+        <div style="display:flex;gap:8px">
+          <button id="resetDefaults" class="btn-ghost">Reset defaults</button>
+          <button id="closeSettings" class="btn-primary">Done</button>
+        </div>
+      </div>
+      <div id="settingsContent" style="margin-top:8px"></div>
+    </div>
+
+    <div id="legend" class="legend-box" style="display:none">
+      <div style="display:flex;gap:10px;align-items:center">
+        <div class="legend-line legend-green"></div><div>Uptrend</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <div class="legend-line legend-red"></div><div>Downtrend</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <div class="legend-line legend-gray"></div><div>Flat / Neutral</div>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+/* ---------------------------
+   Utilities & safeFetch
+   --------------------------- */
+async function safeFetch(url, timeout=10000){
+  try{
+    const c = new AbortController();
+    const id = setTimeout(()=>c.abort(), timeout);
+    const r = await fetch(url, { signal: c.signal });
+    clearTimeout(id);
+    if(!r.ok) throw new Error(r.status + ' ' + r.statusText);
+    return await r.json();
+  }catch(e){ console.warn('Fetch error', url, e && e.message); return null; }
+}
+function fmtNum(v){ if(v===null||v===undefined||isNaN(v)) return 'N/A'; if(Math.abs(v)>=1e12) return (v/1e12).toFixed(2)+'T'; if(Math.abs(v)>=1e9) return (v/1e9).toFixed(2)+'B'; if(Math.abs(v)>=1e6) return (v/1e6).toFixed(2)+'M'; if(Math.abs(v)>=1e3) return (v/1e3).toFixed(2)+'K'; return String(v); }
+function malaysiaTime(){ try { return new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date()); } catch(e){ return new Date().toLocaleString(); } }
+
+/* ---------------------------
+   Config persistence
+   --------------------------- */
+const defaultCfg = {
+  indicators: {
+    'Fear and Greed Index': true,
+    'Funding Rate (BTC & ETH average)': true,
+    'Bitcoin Dominance (%)': true,
+    'Altcoin Season Index': true,
+    'Liquidity Ratio (Mcap / Stablecoins)': true,
+    'Ethereum Gas (Gwei)': true,
+    'RSI (14) on BTC hourly': true,
+    'Open Interest (avg BTC & ETH)': true,
+    'Volume Change % (24h)': true
+  },
+  weights: {
+    'Fear and Greed Index': 0.20,
+    'Funding Rate (BTC & ETH average)': 0.10,
+    'Bitcoin Dominance (%)': 0.10,
+    'Altcoin Season Index': 0.08,
+    'Liquidity Ratio (Mcap / Stablecoins)': 0.08,
+    'Ethereum Gas (Gwei)': 0.04,
+    'RSI (14) on BTC hourly': 0.20,
+    'Open Interest (avg BTC & ETH)': 0.10,
+    'Volume Change % (24h)': 0.10
+  },
+  alert: { bullish_threshold:60, bearish_threshold:40, required_align:3 },
+  etherscan_key: 'demo'
+};
+function loadCfg(){ try{ const raw = localStorage.getItem('csd_v13_cfg'); if(!raw) return JSON.parse(JSON.stringify(defaultCfg)); const p = JSON.parse(raw); p.indicators = {...defaultCfg.indicators, ...(p.indicators||{})}; p.weights = {...defaultCfg.weights, ...(p.weights||{})}; p.alert = {...defaultCfg.alert, ...(p.alert||{})}; p.etherscan_key = p.etherscan_key || defaultCfg.etherscan_key; return p; } catch(e){ return JSON.parse(JSON.stringify(defaultCfg)); } }
+function saveCfg(c){ localStorage.setItem('csd_v13_cfg', JSON.stringify(c)); }
+let cfg = loadCfg();
+
+/* ---------------------------
+   Data fetchers
+   --------------------------- */
+async function fetchFNG(days=14){ const r = await safeFetch(`https://api.alternative.me/fng/?limit=${days}`); return r?.data?.map(x=>({value:+x.value,label:x.value_classification,date:+x.timestamp*1000})).reverse()||null; }
+async function fetchGlobal(){ const r = await safeFetch('https://api.coingecko.com/api/v3/global'); if(!r?.data) return null; const d=r.data; const stable=(d.total_market_cap.usdt||0)+(d.total_market_cap.usdc||0)+(d.total_market_cap.busd||0)+(d.total_market_cap.dai||0)+(d.total_market_cap.tusd||0); return { btcDom: d.market_cap_percentage?.btc ?? null, totalMcap: d.total_market_cap?.usd ?? null, stablecoins: stable }; }
+async function fetchFunding(){ const b1 = await safeFetch('https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&limit=3'); const b2 = await safeFetch('https://fapi.binance.com/fapi/v1/fundingRate?symbol=ETHUSDT&limit=3'); if(!b1||!b2) return null; const avg = arr => arr.reduce((s,i)=>s+parseFloat(i.fundingRate),0)/arr.length; const btc = avg(b1)*100, eth = avg(b2)*100; return { btcAvg:btc, ethAvg:eth, avgBoth:(btc+eth)/2 }; }
+async function fetchAlt(){ const r = await safeFetch('https://api.blockchaincenter.net/api/altcoinseason'); if(!r) return Math.floor(Math.random()*100); return r.altcoinSeasonValue ?? r.altcoinSeasonIndex ?? r.altcoinSeason ?? Math.floor(Math.random()*100); }
+async function fetchEthGas(key='demo'){ const r = await safeFetch(`https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=${key}`); if(!r||!r.result) return 50; return +r.result.ProposeGasPrice; }
+async function fetchRSISeries(periods=20){ 
+  // fetch hourly prices (3 days) and compute rolling RSI series
+  const r = await safeFetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=3&interval=hourly');
+  if(!r||!r.prices) return null;
+  const prices = r.prices.map(p=>p[1]);
+  if(prices.length < periods+1) return null;
+  // compute RSI series for last `periods` points
+  function computeRSI(arr,len){
+    const out=[];
+    // need at least len+1 values to compute first RSI
+    for(let i=len;i<arr.length;i++){
+      let gains=0, losses=0;
+      for(let j=i-len+1;j<=i;j++){
+        const diff = arr[j] - arr[j-1];
+        if(diff>0) gains+=diff; else losses+=Math.abs(diff);
+      }
+      const avgG = gains/len, avgL = losses/len;
+      const rs = avgL===0 ? 1000 : (avgG/avgL);
+      out.push(100 - (100/(1+rs)));
+    }
+    return out.slice(-periods);
+  }
+  const series = computeRSI(prices,14);
+  return series.length ? series.map(v=>+v.toFixed(2)) : null;
+}
+async function fetchOpenInterest(){ const b1 = await safeFetch('https://fapi.binance.com/fapi/v1/openInterest?symbol=BTCUSDT'); const b2 = await safeFetch('https://fapi.binance.com/fapi/v1/openInterest?symbol=ETHUSDT'); if(!b1||!b2) return null; const btc=+b1.openInterest, eth=+b2.openInterest; return { btcOI:btc, ethOI:eth, avgOI:(btc+eth)/2 }; }
+async function fetchVolSeries(){ 
+  const r = await safeFetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=3&interval=daily');
+  if(!r||!r.total_volumes) return null;
+  // total_volumes: [ [ts, v], ... ] last 3 days -> compute percent change series (3 points)
+  const vols = r.total_volumes.map(v=>v[1]);
+  if(vols.length < 3) return null;
+  // produce 3-point series of raw volumes (or percent change)
+  // choose raw volumes (user can interpret), but we will plot percent change to match previous indicator meaning
+  const pct = [];
+  for(let i=1;i<vols.length;i++) pct.push( +( (vols[i] - vols[i-1]) / Math.max(1, vols[i-1]) * 100 ).toFixed(2) );
+  return pct; // length 2 usually; we'll still return array (if length<3 it's fine)
+}
+async function fetchVolChange(){ const r = await safeFetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=3&interval=daily'); if(!r||!r.total_volumes) return null; const vols=r.total_volumes.map(v=>v[1]); if(vols.length<2) return null; const last=vols[vols.length-1], prev=vols[vols.length-2]; const pct = prev===0?0:((last-prev)/prev)*100; return +pct.toFixed(2); }
+
+/* ---------------------------
+   Scoring heuristics
+   --------------------------- */
+function scoreFNG(v){ if(v==null) return 50; return Math.max(0,Math.min(100,v)); }
+function scoreFunding(f){ if(f==null) return 50; const s=50-(f*50); return Math.max(0,Math.min(100,s)); }
+function scoreBTCdom(b){ if(b==null) return 50; const s=100-Math.abs(b-50)*2; return Math.max(0,Math.min(100,s)); }
+function scoreAlt(v){ if(v==null) return 50; return Math.max(0,Math.min(100,v)); }
+function scoreLiquidity(r){ if(r==null) return 50; const s=100-Math.min(100,r); return Math.max(0,Math.min(100,s)); }
+function scoreEthGas(g){ if(g==null) return 50; const s=Math.max(0,Math.min(100,100-Math.min(200,g)/2)); return s; }
+function scoreRSI(rsi){ if(rsi==null) return 50; if(rsi<=30) return Math.min(100,80+(30-rsi)); if(rsi>=70) return Math.max(0,20-(rsi-70)); return Math.max(0,Math.min(100,60-((rsi-50)*0.8))); }
+function scoreOI(avg){ if(avg==null) return 50; const val=Math.log10(avg+1); const s=Math.max(0,Math.min(100,100-(val*12))); return s; }
+function scoreVol(pct){ if(pct==null) return 50; const capped=Math.max(-100,Math.min(100,pct)); return Math.round(50 + (capped/2)); }
+
+/* ---------------------------
+   Composite helpers
+   --------------------------- */
+function normalizeWeights(weights, enabledMap){
+  const keys = Object.keys(weights).filter(k=>enabledMap[k]);
+  let sum=0; keys.forEach(k=> sum += Math.max(0, weights[k]||0));
+  if(sum===0){ const out={}; keys.forEach(k=> out[k]=1/keys.length); return out; }
+  const out={}; keys.forEach(k=> out[k] = (weights[k]||0)/sum); return out;
+}
+function computeComposite(scoresMap){ const normalized = normalizeWeights(cfg.weights, cfg.indicators); let total=0; Object.keys(normalized).forEach(k=>{ const sObj = scoresMap[k]; const s = sObj ? (sObj.score||50) : 50; total += s * normalized[k]; }); return total; }
+
+/* ---------------------------
+   Sparkline helpers
+   --------------------------- */
+const sparkCharts = [];
+function createSparkline(canvas, data, sentimentType){
+  if(!canvas || !data || !data.length) return;
+  try{
+    const ctx = canvas.getContext('2d');
+    // destroy existing
+    if(canvas._sparkChart) canvas._sparkChart.destroy();
+    const first = data[0], last = data[data.length-1];
+    const delta = last - first;
+    const color = delta > 0.5 ? '#2ea44f' : delta < -0.5 ? '#d6453a' : '#97a0ad';
+    const cfg = {
+      type: 'line',
+      data: { labels: data.map((_,i)=>i), datasets: [{ data: data, borderWidth:1.2, pointRadius:0, fill:false, borderColor: color, tension:0.3 }]},
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{enabled:false}},
+        scales:{x:{display:false},y:{display:false}}
+      }
+    };
+    canvas._sparkChart = new Chart(ctx, cfg);
+    sparkCharts.push(canvas._sparkChart);
+  }catch(e){ console.warn('sparkline init error', e); }
+}
+
+/* ---------------------------
+   UI: settings build & interactions
+   --------------------------- */
+const settingsContent = document.getElementById('settingsContent');
+function buildSettings(){
+  settingsContent.innerHTML = '';
+  Object.keys(cfg.indicators).forEach(key=>{
+    const row = document.createElement('div'); row.className='settings-row';
+    const left = document.createElement('div'); left.style.display='flex'; left.style.alignItems='center'; left.style.gap='8px';
+    const chk = document.createElement('input'); chk.type='checkbox'; chk.checked = !!cfg.indicators[key];
+    chk.addEventListener('change', e=>{ cfg.indicators[key] = e.target.checked; saveCfg(cfg); });
+    const lbl = document.createElement('label'); lbl.textContent = key; lbl.style.fontWeight='700';
+    left.appendChild(chk); left.appendChild(lbl);
+    const right = document.createElement('div'); right.style.display='flex'; right.style.alignItems='center'; right.style.gap='8px';
+    const slider = document.createElement('input'); slider.type='range'; slider.min='0'; slider.max='100'; slider.value = Math.round((cfg.weights[key]||0)*100);
+    slider.addEventListener('input', e=>{ cfg.weights[key] = Number(e.target.value)/100; saveCfg(cfg); pct.textContent = Math.round(Number(e.target.value)) + '%'; });
+    const pct = document.createElement('div'); pct.className='small'; pct.textContent = Math.round((cfg.weights[key]||0)*100) + '%';
+    right.appendChild(slider); right.appendChild(pct);
+    row.appendChild(left); row.appendChild(right);
+    settingsContent.appendChild(row);
+  });
+  const rowK = document.createElement('div'); rowK.className='settings-row';
+  const lblK = document.createElement('label'); lblK.textContent = 'Etherscan API Key (optional)'; lblK.style.fontWeight='700';
+  const inputK = document.createElement('input'); inputK.type='text'; inputK.value = cfg.etherscan_key || ''; inputK.style.padding='6px'; inputK.style.border='1px solid rgba(0,0,0,0.06)'; inputK.style.borderRadius='6px';
+  inputK.addEventListener('change', e=>{ cfg.etherscan_key = e.target.value || 'demo'; saveCfg(cfg); });
+  rowK.appendChild(lblK); rowK.appendChild(inputK);
+  settingsContent.appendChild(rowK);
+}
+
+/* ---------------------------
+   render pipeline
+   --------------------------- */
+function trendText(key, raw){
+  const k = 'trend_v13_' + key;
+  const prev = parseFloat(localStorage.getItem(k));
+  localStorage.setItem(k, raw===null||raw===undefined?NaN:raw);
+  if(isNaN(prev)) return '➖';
+  const diff = (raw||0) - prev;
+  if(Math.abs(diff) < 1e-8) return '➖';
+  return diff>0 ? '📈' : '📉';
+}
+function suggestLabel(score){
+  if(score>=65) return ['Buy / Accumulate','buy','Accumulation recommended with risk management.'];
+  if(score<=35) return ['Sell / Exit','sell','Consider trimming / exiting positions.'];
+  return ['Hold / Observe','hold','Neutral — monitor for clearer signals.'];
+}
+function renderSummary(actionMap){
+  const container = document.getElementById('summary'); container.innerHTML=''; container.style.display='block';
+  Object.keys(actionMap).forEach(k=>{
+    const r = document.createElement('div'); r.className='summary-row ' + (actionMap[k].type==='buy'?'buy':actionMap[k].type==='sell'?'sell':'hold');
+    r.innerHTML = `<div>${k}</div><div>${actionMap[k].label}</div>`;
+    container.appendChild(r);
+  });
+}
+function renderAlerts(res){
+  const area = document.getElementById('alertArea'); area.innerHTML='';
+  if(res.triggerBull){
+    const el = document.createElement('div'); el.className='card'; el.style.background='rgba(29,161,84,0.06)'; el.style.color='#1e8a3f'; el.style.fontWeight=800; el.style.textAlign='center'; el.style.margin='6px 0'; el.textContent = `Bullish alignment — ${res.bullish} indicators aligned (>= ${cfg.alert.required_align})`; area.appendChild(el);
+  } else if(res.triggerBear){
+    const el = document.createElement('div'); el.className='card'; el.style.background='rgba(214,69,58,0.06)'; el.style.color='#d6453a'; el.style.fontWeight=800; el.style.textAlign='center'; el.style.margin='6px 0'; el.textContent = `Bearish alignment — ${res.bearish} indicators aligned (>= ${cfg.alert.required_align})`; area.appendChild(el);
+  }
+}
+
+/* ---------------------------
+   main: fetch, compute, render
+   --------------------------- */
+let mainChart = null;
+function renderMainChart(labels, values){
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  if(mainChart) mainChart.destroy();
+  mainChart = new Chart(ctx, { type:'line', data:{ labels, datasets:[{ data: values, borderWidth:2, tension:0.3, pointRadius:1 }]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:100}}}});
+}
+
+async function loadAndRender(){
+  document.getElementById('sentScore').textContent = 'Loading…';
+  const en = cfg.indicators;
+  // fetch historical series for sparklines where available
+  const fngPromise = en['Fear and Greed Index'] ? fetchFNG(14) : Promise.resolve(null);
+  const rsiSeriesPromise = en['RSI (14) on BTC hourly'] ? fetchRSISeries(20) : Promise.resolve(null);
+  const volSeriesPromise = en['Volume Change % (24h)'] ? fetchVolSeries() : Promise.resolve(null);
+
+  const otherPromises = [
+    (en['Bitcoin Dominance (%)']||en['Liquidity Ratio (Mcap / Stablecoins)']) ? fetchGlobal() : Promise.resolve(null),
+    en['Funding Rate (BTC & ETH average)'] ? fetchFunding() : Promise.resolve(null),
+    en['Altcoin Season Index'] ? fetchAlt() : Promise.resolve(null),
+    en['Ethereum Gas (Gwei)'] ? fetchEthGas(cfg.etherscan_key) : Promise.resolve(null),
+    en['Open Interest (avg BTC & ETH)'] ? fetchOpenInterest() : Promise.resolve(null),
+    en['Volume Change % (24h)'] ? fetchVolChange() : Promise.resolve(null)
+  ];
+
+  const [fngData, rsiSeries, volSeries, globalData, fundingData, alt, gas, oi, volchg] = await Promise.all([fngPromise, rsiSeriesPromise, volSeriesPromise, ...otherPromises]);
+
+  // build raw values and scores
+  const fngLatest = fngData && fngData.length ? fngData[fngData.length-1].value : null;
+  const fngLabel = fngData && fngData.length ? fngData[fngData.length-1].label : '';
+  const btcDom = globalData ? globalData.btcDom : null;
+  const totalMcap = globalData ? globalData.totalMcap : null;
+  const stable = globalData ? globalData.stablecoins : null;
+  const fundingAvg = fundingData ? fundingData.avgBoth : null;
+  const liquidityRatio = (totalMcap && stable) ? totalMcap / Math.max(1, stable) : null;
+
+  const scores = {};
+  scores['Fear and Greed Index'] = { raw: fngLatest, score: scoreFNG(fngLatest), disp: fngLatest!=null? fngLatest + '/100' : 'N/A', meaning:'Measures market psychology using volatility, volume & social metrics.', insight: fngLabel ? (fngLabel + ' — ' + (fngLatest>=70? 'High optimism; possible overheat.' : fngLatest<=30? 'High fear; potential buy zone.' : 'Neutral.')) : '' , series: fngData ? fngData.map(x=>x.value) : null };
+  scores['Funding Rate (BTC & ETH average)'] = { raw: fundingAvg, score: scoreFunding(fundingAvg), disp: fundingAvg!=null? fundingAvg.toFixed(4)+'%' : 'N/A', meaning:'Perpetual futures funding — trader bias.', insight: fundingAvg!=null? (fundingAvg>0? 'Longs paying — bullish but possibly overheated.' : 'Shorts paying — bearish bias.') : '' };
+  scores['Bitcoin Dominance (%)'] = { raw: btcDom, score: scoreBTCdom(btcDom), disp: btcDom!=null? btcDom.toFixed(2)+'%' : 'N/A', meaning:'% of market cap in Bitcoin — capital concentration.', insight: btcDom!=null? (btcDom>55? 'BTC-focused market.' : btcDom<45? 'Alt rotation.' : 'Balanced.') : '' };
+  scores['Altcoin Season Index'] = { raw: alt, score: scoreAlt(alt), disp: alt!=null? Math.round(alt) + '/100' : 'N/A', meaning:'Altcoins vs BTC performance indicator.', insight: alt!=null? (alt>=75? 'Alt season.' : alt<=25? 'Bitcoin season.' : 'Mixed.') : '' };
+  scores['Liquidity Ratio (Mcap / Stablecoins)'] = { raw: liquidityRatio, score: scoreLiquidity(liquidityRatio), disp: liquidityRatio!=null? liquidityRatio.toFixed(2) : 'N/A', meaning:'Total MCap / Stablecoin supply — buying power proxy.', insight: liquidityRatio!=null? (liquidityRatio<10? 'Good stablecoin liquidity.' : 'Lower buying power; watch volatility.') : '' };
+  scores['Ethereum Gas (Gwei)'] = { raw: gas, score: scoreEthGas(gas), disp: gas!=null? gas + ' Gwei' : 'N/A', meaning:'Average ETH gas price — network congestion proxy.', insight: gas!=null? (gas>100? 'High congestion — costly txs.' : gas<20? 'Calm network.' : 'Moderate activity.') : '' };
+  scores['RSI (14) on BTC hourly'] = { raw: rsiSeries && rsiSeries.length ? rsiSeries[rsiSeries.length-1] : null, score: rsiSeries && rsiSeries.length ? scoreRSI(rsiSeries[rsiSeries.length-1]) : 50, disp: rsiSeries && rsiSeries.length ? rsiSeries[rsiSeries.length-1].toFixed(2) : 'N/A', meaning:'RSI measures overbought/oversold momentum (hourly).', insight: rsiSeries && rsiSeries.length ? (rsiSeries[rsiSeries.length-1]<30? 'Oversold — possible buy.' : rsiSeries[rsiSeries.length-1]>70? 'Overbought — caution.' : 'Neutral momentum.') : '', series: rsiSeries };
+  scores['Open Interest (avg BTC & ETH)'] = { raw: oi ? oi.avgOI : null, score: scoreOI(oi?oi.avgOI:null), disp: oi && oi.avgOI ? fmtNum(oi.avgOI) : 'N/A', meaning:'Leverage in futures — liquidation risk indicator.', insight: oi && oi.avgOI ? (oi.avgOI>1e8? 'High leverage.' : 'Moderate leverage.') : '' };
+  scores['Volume Change % (24h)'] = { raw: volchg, score: scoreVol(volchg), disp: volchg!=null? volchg + '%' : 'N/A', meaning:'24h volume change vs previous — trend confirmation.', insight: volchg!=null? (volchg>20? 'Rising volume — trend confirmed.' : volchg<-20? 'Falling volume — weak trend.' : 'Stable volume.') : '', series: volSeries };
+
+  // composite
+  const composite = computeComposite(scores);
+
+  // render main chart (FNG preferred)
+  if(fngData && fngData.length) renderMainChart(fngData.map(d=>new Date(d.date).toLocaleDateString()), fngData.map(d=>d.value));
+  else if(scores['RSI (14) on BTC hourly'].series && scores['RSI (14) on BTC hourly'].series.length) renderMainChart(scores['RSI (14) on BTC hourly'].series.map((_,i)=>i), scores['RSI (14) on BTC hourly'].series);
+
+  // render cards
+  const order = ['Fear and Greed Index','Funding Rate (BTC & ETH average)','Bitcoin Dominance (%)','Altcoin Season Index','Liquidity Ratio (Mcap / Stablecoins)','Ethereum Gas (Gwei)','RSI (14) on BTC hourly','Open Interest (avg BTC & ETH)','Volume Change % (24h)'];
+  const container = document.getElementById('cards'); container.innerHTML = ''; const actionMap={}; // will hold actions for summary
+
+  // destroy previous spark charts
+  try{ sparkCharts.forEach(c=>c.destroy()); sparkCharts.length=0; }catch(e){}
+
+  for(const k of order){
+    if(!cfg.indicators[k]) continue;
+    const obj = scores[k]; if(!obj) continue;
+    const [label, type, tip] = suggestLabel(obj.score);
+    actionMap[k] = { label, type, tip };
+    const chipClass = type==='buy' ? 'chip buy' : type==='sell' ? 'chip sell' : 'chip hold';
+    const bgClass = type==='buy' ? 'buy-bg' : type==='sell' ? 'sell-bg' : 'hold-bg';
+    // create card element
+    const card = document.createElement('div'); card.className = 'card ' + bgClass;
+
+    // spark placeholder only for FNG, RSI, Volume series (real-data)
+    let sparkHtml = '';
+    if(obj.series && obj.series.length){
+      sparkHtml = `<div class="spark-wrap"><canvas class="spark" data-key="${encodeURIComponent(k)}"></canvas></div>`;
+    } else {
+      sparkHtml = ''; // no sparkline for this card
+    }
+
+    card.innerHTML = `<div class="label"><div style="font-weight:800">${k}</div><div class="small">${trendText(k,obj.raw)}</div></div>
+                      <div class="value">${obj.disp} <span class="conf">· ${Math.round(obj.score)}%</span></div>
+                      ${sparkHtml}
+                      <div class="${chipClass}">${label}</div>
+                      <div class="meaning"><b>Meaning:</b> ${obj.meaning || ''}</div>
+                      <div class="insight"><b>Insight:</b> ${obj.insight || tip}</div>`;
+
+    container.appendChild(card);
+
+    // if spark inserted, initialize it
+    if(obj.series && obj.series.length){
+      // slight delay to ensure canvas inserted/rendered
+      setTimeout(()=>{
+        const canv = container.querySelector(`canvas.spark[data-key="${encodeURIComponent(k)}"]`);
+        if(canv){
+          // ensure data length >=2 for visible spark; if small, pad min points
+          let series = obj.series.slice();
+          if(series.length < 3){
+            // pad with small repeated values to avoid too flat
+            while(series.length < 3) series.unshift(series[0]);
+          }
+          createSparkline(canv, series, type);
+        }
+      }, 50);
+    }
+  }
+
+  // composite card (always shown)
+  const compCard = document.createElement('div'); compCard.className = 'card';
+  const compAction = composite>=70 ? ['Sell / Exit','sell','Consider taking profits — market showing strong greed.'] : composite<=40 ? ['Buy / Accumulate','buy','Composite indicates buying opportunity (fear).'] : ['Hold / Observe','hold','Composite neutral — wait for confirmation.'];
+  const compChip = compAction[1]==='buy' ? 'chip buy' : compAction[1]==='sell' ? 'chip sell' : 'chip hold';
+  compCard.innerHTML = `<div class="label"><div style="font-weight:800">Composite Sentiment</div><div class="small">${trendText('composite', composite)}</div></div>
+                       <div class="value">${composite.toFixed(1)} / 100 <span class="conf">· composite</span></div>
+                       <div class="${compChip}">${compAction[0]}</div>
+                       <div class="meaning"><b>Meaning:</b> A weighted blend of enabled indicators — single market confidence score (0-100).</div>
+                       <div class="insight"><b>Insight:</b> ${compAction[2]}</div>`;
+  container.appendChild(compCard);
+
+  // summary, alerts
+  renderSummary(actionMap);
+  const al = checkAlerts(scores); renderAlerts(al);
+
+  // show legend box only when at least one sparkline was added
+  const anySparks = Object.keys(scores).some(k=> scores[k].series && scores[k].series.length);
+  document.getElementById('legend').style.display = anySparks ? 'flex' : 'none';
+
+  // update header and timestamp
+  document.getElementById('sentScore').innerHTML = `🧭 Composite: <strong>${composite.toFixed(1)} / 100</strong> — ${mood(composite)}`;
+  document.getElementById('ptr').style.left = Math.max(0, Math.min(100, composite)) + '%';
+  document.getElementById('timestamp').textContent = '⏰ Last updated: ' + malaysiaTime();
+}
+
+/* ---------------------------
+   Alerts, small helpers
+   --------------------------- */
+function checkAlerts(scores){
+  let bullish=0,bearish=0;
+  const bT=cfg.alert.bullish_threshold, brT=cfg.alert.bearish_threshold;
+  Object.keys(cfg.indicators).forEach(k=>{ if(!cfg.indicators[k]) return; const s = scores[k] ? scores[k].score : 50; if(s>=bT) bullish++; if(s<=brT) bearish++; });
+  return { bullish, bearish, triggerBull: bullish>=cfg.alert.required_align, triggerBear: bearish>=cfg.alert.required_align };
+}
+function trendText(key, raw){
+  const k = 'trend_v13_' + key;
+  const prev = parseFloat(localStorage.getItem(k));
+  localStorage.setItem(k, raw===null||raw===undefined?NaN:raw);
+  if(isNaN(prev)) return '➖';
+  const diff = (raw||0)-prev;
+  if(Math.abs(diff)<1e-8) return '➖';
+  return diff>0 ? '📈' : '📉';
+}
+function mood(score){ if(score<25) return '😱 Extreme Fear'; if(score<45) return '😟 Fear'; if(score<60) return '😐 Neutral'; if(score<75) return '😊 Greed'; return '🚀 Extreme Greed'; }
+
+/* ---------------------------
+   Interactions & init
+   --------------------------- */
+document.getElementById('settingsToggle').addEventListener('click', ()=>{ const p=document.getElementById('settingsPanel'); if(p.style.display==='none'||!p.style.display){ buildSettings(); p.style.display='block'; } else p.style.display='none'; });
+document.getElementById('closeSettings').addEventListener('click', ()=>{ document.getElementById('settingsPanel').style.display='none'; loadAndRender(); });
+document.getElementById('resetDefaults').addEventListener('click', ()=>{ cfg = JSON.parse(JSON.stringify(defaultCfg)); saveCfg(cfg); buildSettings(); loadAndRender(); });
+document.getElementById('refreshNow').addEventListener('click', ()=> loadAndRender());
+document.getElementById('darkToggle').addEventListener('click', ()=> document.body.classList.toggle('dark'));
+document.getElementById('refresh').addEventListener('change', ()=>{ const m=Number(document.getElementById('refresh').value); if(window.__csd_timer) clearInterval(window.__csd_timer); window.__csd_timer = setInterval(loadAndRender, m*60*1000); localStorage.setItem('csd_v13_refresh', m); });
+const savedM = Number(localStorage.getItem('csd_v13_refresh')||10); document.getElementById('refresh').value = savedM; if(window.__csd_timer) clearInterval(window.__csd_timer); window.__csd_timer = setInterval(loadAndRender, savedM*60*1000);
+
+/* ---------------------------
+   Start
+   --------------------------- */
+buildSettings();
+loadAndRender();
+</script>
+</body>
+</html>
