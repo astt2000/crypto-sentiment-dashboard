@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Supply Squeeze Pressure Monitor v9 — Settings Sidebar + Tooltips (fixed)</title>
+<style>
+:root{--bg:#f6f8fb;--card:#fff;--text:#0f1720;--muted:#6b737b;--accent:#0b76d1;--good:#1e8a3f;--bad:#d6453a;--neutral:#65707a;font-family:Inter,Segoe UI,Roboto,Arial,sans-serif}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+body.dark{background:#071217;color:#e6eef6;--accent:#36a2ff}
+.app{max-width:1080px;margin:0 auto;padding:10px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;padding:8px;border-radius:10px;background:rgba(255,255,255,0.92);gap:8px;position:sticky;top:0;z-index:11;backdrop-filter:blur(6px)}
+.title-row{display:flex;align-items:center;gap:10px}
+.title-row h1{margin:0;font-size:1.05rem;color:var(--accent);font-weight:800}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+select,button,input{padding:6px 10px;border-radius:8px;border:0;cursor:pointer;font-weight:700;min-height:36px;font-size:14px}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-ghost{background:transparent;border:1px solid rgba(0,0,0,0.06)}
+.tip{font-size:13px;color:var(--muted);margin-top:8px}
+#contextBar{font-size:13px;padding:6px 10px;background:rgba(0,0,0,0.03);border-radius:10px;text-align:center;margin:8px 0}
+.scale-wrap{margin-top:6px;padding:8px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,0.6),rgba(255,255,255,0.4));box-shadow:0 6px 18px rgba(16,24,40,0.03)}
+.scale{height:12px;border-radius:10px;overflow:hidden;background:linear-gradient(90deg,#d6453a,#ff9a3d,#b7bfc8,#4fb1b9,#2ea44f)}
+.marker{position:absolute;top:-8px;width:2px;height:30px;background:#111;border-radius:2px;transform:translateX(-1px);transition:left .55s}
+.marker-dot{position:absolute;top:-6px;left:-7px;width:14px;height:14px;border-radius:50%;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px}
+#moodBar{margin-top:8px;padding:8px;border-radius:8px;background:rgba(0,0,0,0.03);font-weight:700;text-align:center}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:10px}
+.card{display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:10px;background:var(--card);box-shadow:0 8px 20px rgba(16,24,40,0.04);transition:all .25s}
+.card[data-sspi-high]{background:linear-gradient(180deg,rgba(46,164,79,0.05),#fff)}
+.card[data-sspi-mid]{background:linear-gradient(180deg,rgba(255,165,0,0.05),#fff)}
+.card[data-sspi-low]{background:linear-gradient(180deg,rgba(214,69,58,0.05),#fff)}
+.card-row{display:flex;justify-content:space-between;align-items:center}
+.left{display:flex;align-items:center;gap:8px}
+.logo{width:36px;height:36px;border-radius:8px;overflow:hidden;background:#fff;flex:0 0 36px}
+.logo img{width:100%;height:100%;object-fit:contain}
+.symbol{font-weight:800}
+.score-wrap{display:flex;align-items:center;gap:8px}
+.score{font-weight:900;font-size:1.05rem}
+.spark-canvas{width:64px;height:12px;border-radius:4px}
+.volatility{font-size:12px;color:var(--muted);margin-left:6px}
+.sspi-bar{height:4px;border-radius:3px;background:rgba(0,0,0,0.06);overflow:hidden;margin-top:4px}
+.sspi-fill{height:100%;background:var(--accent);transition:width .8s}
+.favorite{font-size:18px;cursor:pointer;opacity:.85;margin-top:6px}
+.favorite.active{color:gold;opacity:1}
+.summary-wrap{margin-top:10px;border-radius:10px;overflow-x:auto;overflow:visible;background:rgba(0,0,0,0.02);-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:520px}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid rgba(0,0,0,0.04);overflow:visible}
+th{font-weight:800;color:var(--muted);position:sticky;top:0;background:var(--card)}
+.rank-1 td{background:linear-gradient(90deg,rgba(46,164,79,0.06),rgba(255,255,255,0))}
+#trendCanvas{height:36px;width:100%;}
+#loader{position:fixed;bottom:18px;right:18px;width:36px;height:36px;border-radius:50%;border:3px solid var(--accent);border-top-color:transparent;animation:spin 1s linear infinite;display:none;z-index:30}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* slide-in sidebar */
+.sidebar-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.25);backdrop-filter:blur(3px);z-index:60;display:none}
+.sidebar{position:fixed;right:-360px;top:0;height:100%;width:320px;background:var(--card);box-shadow:-12px 0 30px rgba(0,0,0,0.12);z-index:61;padding:16px;transition:right .28s cubic-bezier(.2,.9,.2,1);}
+.sidebar.open{right:0}
+.sidebar h3{margin-top:0}
+.sidebar label{display:block;margin:8px 0;font-size:14px}
+.toggle{display:inline-flex;align-items:center;gap:8px}
+.switch{width:44px;height:24px;background:#ddd;border-radius:999px;position:relative;cursor:pointer}
+.switch .knob{position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .18s}
+.switch.on{background:var(--accent)}
+.switch.on .knob{left:23px}
+.tooltip{position:relative;display:inline-block;cursor:help;color:var(--muted);margin-left:6px}
+.tooltip .tooltiptext{visibility:hidden;opacity:0;width:260px;background:rgba(0,0,0,0.85);color:#fff;text-align:left;border-radius:8px;padding:8px;position:absolute;z-index:100000;bottom:125%;left:50%;transform:translateX(-50%);transition:opacity .22s;box-shadow:0 6px 18px rgba(0,0,0,0.18);font-size:12px}
+.tooltip:hover .tooltiptext{visibility:visible;opacity:1}
+body.dark .tooltip .tooltiptext{background:rgba(255,255,255,0.95);color:#000}
+@media(max-width:480px){.logo{width:32px;height:32px}.score{font-size:0.95rem}.spark-canvas{width:56px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="title-row">
+      <svg width="36" height="36" viewBox="0 0 24 24"><rect width="24" height="24" rx="5" fill="var(--accent)"/><path d="M5 15l3-6 3 12 3-9 3 6" stroke="#fff" stroke-width="1.1"/></svg>
+      <div>
+        <h1>Supply Squeeze Pressure Monitor</h1>
+        <div class="last-updated" id="lastUpdated">Last updated: -- (GMT+8)</div>
+      </div>
+    </div>
+    <div class="controls">
+      <input id="filterInput" placeholder="🔍 Filter (symbol or >70)" style="min-width:160px" />
+      <select id="refreshSelect"><option value="5">5m</option><option value="10">10m</option><option value="30" selected>30m</option></select>
+      <button id="refreshNow" class="btn-primary">Refresh</button>
+      <button id="themeToggle" class="btn-ghost">🌙</button>
+      <button id="settingsBtn" class="btn-ghost">⚙️</button>
+    </div>
+  </header>
+
+  <div id="contextBar">Market context loading…</div>
+  <div class="scale-wrap" style="position:relative"><div class="scale" id="scaleBar"></div><div id="marker" class="marker" style="left:50%;display:none"><div class="marker-dot" id="markerDot">--</div></div></div>
+  <div id="moodBar">Market Mood: --</div>
+  <canvas id="trendCanvas"></canvas>
+
+  <div id="grid" class="grid" aria-live="polite"></div>
+
+  <div class="summary-wrap"><table id="summaryTable"><thead><tr><th>#</th><th>Coin</th><th>SSPI</th><th>Status</th><th>Vol <span class="tooltip">?<span class="tooltiptext">7-day price volatility (standard deviation ÷ mean × 100%). Higher = more price movement.</span></span></th><th>Fav <span class="tooltip">?<span class="tooltiptext">Your starred/pinned coins. Favored coins float to top.</span></span></th></tr></thead><tbody></tbody></table></div>
+</div>
+
+<div id="loader"></div>
+<div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+<aside id="sidebar" class="sidebar" aria-hidden="true">
+  <h3>Settings</h3>
+  <label>History length
+    <select id="historyLength"><option value="5">5</option><option value="10">10</option><option value="15">15</option><option value="20">20</option></select>
+  </label>
+  <label class="toggle">Fetch Fear & Greed Index
+    <div id="fngSwitch" class="switch"><div class="knob"></div></div>
+  </label>
+  <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
+    <button id="closeSettings" class="btn-ghost">Close</button>
+  </div>
+</aside>
+
+<script>
+// v9 — slide-in settings sidebar + custom tooltips + history length + F&G toggle (fixed tooltips & context)
+const coins=[{id:'bitcoin',sym:'BTC'},{id:'ethereum',sym:'ETH'},{id:'ripple',sym:'XRP'},{id:'chainlink',sym:'LINK'},{id:'cardano',sym:'ADA'},{id:'solana',sym:'SOL'},{id:'stellar',sym:'XLM'},{id:'hedera-hashgraph',sym:'HBAR'},{id:'polygon',sym:'POL'},{id:'algorand',sym:'ALGO'},{id:'render-token',sym:'RENDER'},{id:'dogecoin',sym:'DOGE'}];
+const LS_CFG='sspi_v9_cfg', LS_HISTORY='sspi_v9_history', LS_FAV='sspi_v9_favs';
+const DEFAULT_REFRESH=30;let cfg=loadCfg(), refreshTimer=null;
+function loadCfg(){try{const r=localStorage.getItem(LS_CFG); if(!r) return {refresh:DEFAULT_REFRESH,theme:'light',historyLength:10,fetchFNG:true}; const p=JSON.parse(r); return {refresh:p.refresh||DEFAULT_REFRESH,theme:p.theme||'light',historyLength:p.historyLength||10,fetchFNG:('fetchFNG' in p? p.fetchFNG:true)} }catch(e){return {refresh:DEFAULT_REFRESH,theme:'light',historyLength:10,fetchFNG:true}}}
+function saveCfg(){localStorage.setItem(LS_CFG,JSON.stringify(cfg))}
+function loadFavs(){try{return JSON.parse(localStorage.getItem(LS_FAV)||'[]')}catch(e){return []}}
+function saveFavs(arr){localStorage.setItem(LS_FAV,JSON.stringify(arr))}
+function pushHistory(avg){try{const raw=JSON.parse(localStorage.getItem(LS_HISTORY)||'[]'); raw.push({t:Date.now(),avg}); while(raw.length> (cfg.historyLength||10)) raw.shift(); localStorage.setItem(LS_HISTORY,JSON.stringify(raw))}catch(e){}
+}
+function getHistory(){try{return JSON.parse(localStorage.getItem(LS_HISTORY)||'[]')}catch(e){return[]}}
+function malaysiaTime(){return new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kuala_Lumpur',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date())}
+async function safeFetch(url,timeout=12000,retries=2){for(let i=0;i<=retries;i++){try{const ctrl=new AbortController();const id=setTimeout(()=>ctrl.abort(),timeout);const res=await fetch(url,{signal:ctrl.signal});clearTimeout(id);if(!res.ok) throw new Error('bad');return await res.json()}catch(e){if(i===retries) return null;await new Promise(r=>setTimeout(r,500))}}}
+function normalize(v,min,max){if(typeof v!=='number'||isNaN(v))return 0;const c=Math.max(min,Math.min(max,v));return((c-min)/(max-min))*100}
+function computeSSPI(item){const p=item.price_change_percentage_30d_in_currency;const vol=item.total_volume||1;const m=item.market_cap||1;const ill=normalize(p,-50,50);const ssr=normalize(Math.log10(Math.max(1,m/Math.max(1,vol))),0,6);return Math.round(ill*0.6+ssr*0.4)}
+function statusLabel(s){if(s>=70) return {label:'High',cls:'chip high'}; if(s>=40) return {label:'Neutral',cls:'chip neutral'}; return {label:'Low',cls:'chip low'}}
+function volatilityPercent(arr){if(!arr||arr.length<2) return null; const nums=arr.map(Number); const mean=nums.reduce((a,b)=>a+b,0)/nums.length; const sd=Math.sqrt(nums.reduce((a,b)=>a+Math.pow(b-mean,2),0)/nums.length); return +(sd/Math.max(1,Math.abs(mean))*100).toFixed(2)}
+function actionText(s){if(s>=70) return 'Buy'; if(s>=40) return 'Hold'; return 'Caution'}
+
+async function fetchContext(){ const cg = await safeFetch('https://api.coingecko.com/api/v3/global'); let fng=null; if(cfg.fetchFNG){ const f = await safeFetch('https://api.alternative.me/fng/?limit=1'); fng = f && f.data && f.data[0] ? f.data[0].value : null; } if(!cg) return null; const tot = Math.round((cg.data.total_market_cap.usd||0)/1e9*100)/100; const btcD = +(cg.data.market_cap_percentage.btc||0).toFixed(1); return {totalMarketBillion:tot,btcDominance:btcD,fng:fng}; }
+
+function drawTrend(){ const cvs=document.getElementById('trendCanvas'); const history=getHistory(); if(!cvs||history.length===0){ if(cvs) cvs.style.display='none'; return; } cvs.style.display='block'; const ctx=cvs.getContext('2d'); const DPR=window.devicePixelRatio||1; const w=cvs.clientWidth*DPR; const h=36*DPR; cvs.width=w; cvs.height=h; ctx.clearRect(0,0,w,h); const vals=history.map(x=>x.avg); const min=Math.min(...vals), max=Math.max(...vals); const range=(max-min)||1; const slope=vals[vals.length-1]-vals[0]; ctx.lineWidth=2*DPR; ctx.strokeStyle = slope>0? '#1e8a3f':(slope<0? '#d6453a':'#97a0ad'); ctx.beginPath(); vals.forEach((v,i)=>{ const x=(i/(vals.length-1||1))*w; const y=h-((v-min)/range)*h; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke(); }
+
+function drawTinySpark(canvas,arr){ if(!canvas||!arr||arr.length<2) return; const ctx=canvas.getContext('2d'); const DPR=window.devicePixelRatio||1; const w=canvas.clientWidth*DPR; const h=canvas.clientHeight*DPR; canvas.width=w; canvas.height=h; ctx.clearRect(0,0,w,h); const min=Math.min(...arr), max=Math.max(...arr); const range=(max-min)||1; ctx.lineWidth = Math.max(1,DPR); ctx.strokeStyle = arr[arr.length-1] > arr[0] ? '#1e8a3f' : (arr[arr.length-1] < arr[0] ? '#d6453a' : '#97a0ad'); ctx.beginPath(); arr.forEach((v,i)=>{ const x=(i/(arr.length-1))*w; const y=h-((v-min)/range)*h; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke(); }
+
+async function loadDataAndRender(){ const loader=document.getElementById('loader'); loader.style.display='block'; document.getElementById('lastUpdated').textContent='Fetching…'; const ids=coins.map(c=>c.id).join(','); const url=`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${encodeURIComponent(ids)}&order=market_cap_desc&per_page=250&page=1&sparkline=true&price_change_percentage=30d`; const data = await safeFetch(url,12000,2); loader.style.display='none'; if(!data){ document.getElementById('grid').innerHTML='<div style="padding:12px;color:var(--muted)">Data unavailable</div>'; return; }
+// update context bar
+fetchContext().then(ctx=>{ if(ctx){ const fngText = ctx.fng!==null ? ctx.fng : 'n/a'; document.getElementById('contextBar').innerHTML = `🌐 <span title="Total market cap across all cryptocurrencies in USD, shown in billions">${ctx.totalMarketBillion}B</span> &nbsp;•&nbsp; BTC.D <span title="Bitcoin market cap dominance (percentage)">${ctx.btcDominance}%</span> &nbsp;•&nbsp; <span class=\"tooltip\">F&amp;G <span class=\"tooltiptext\">Fear &amp; Greed index (0-100). Low = extreme fear (potential buying opportunities). High = extreme greed.</span> <strong>${fngText}</strong></span>`; } else { document.getElementById('contextBar').textContent='Context: unavailable'; } });
+
+const favs = loadFavs(); const filterRaw = (document.getElementById('filterInput')||{}).value||''; const grid=document.getElementById('grid'); grid.innerHTML=''; const rows=[]; let sum=0, count=0;
+for(const item of data){ const sspi = computeSSPI(item); if(!isNaN(sspi)){ sum+=sspi; count++; } const st = statusLabel(sspi); const vol = volatilityPercent(item.sparkline_in_7d?.price?.slice(-30)); // build card
+const card=document.createElement('div'); card.className='card'; if(sspi>=70) card.dataset.sspiHigh=true; else if(sspi>=40) card.dataset.sspiMid=true; else card.dataset.sspiLow=true;
+// favorite star
+const favBtn=document.createElement('div'); favBtn.className='favorite'; favBtn.innerHTML='☆'; if(favs.includes(item.id)){ favBtn.classList.add('active'); favBtn.innerHTML='★'; }
+favBtn.addEventListener('click',()=>{ let current=loadFavs(); if(current.includes(item.id)){ current = current.filter(x=>x!==item.id); favBtn.classList.remove('active'); favBtn.innerHTML='☆'; } else { current.unshift(item.id); favBtn.classList.add('active'); favBtn.innerHTML='★'; } saveFavs(current); loadDataAndRender(); });
+
+const row=document.createElement('div'); row.className='card-row'; const left=document.createElement('div'); left.className='left'; const logo=document.createElement('div'); logo.className='logo'; const img=document.createElement('img'); img.src=item.image; img.alt=item.symbol; logo.appendChild(img); const sym=document.createElement('div'); sym.className='symbol'; sym.textContent=item.symbol.toUpperCase(); left.appendChild(logo); left.appendChild(sym);
+const right=document.createElement('div'); right.style.display='flex'; right.style.flexDirection='column'; right.style.alignItems='flex-end'; const scoreWrap=document.createElement('div'); scoreWrap.className='score-wrap'; const score=document.createElement('div'); score.className='score'; score.textContent=sspi; const canvas=document.createElement('canvas'); canvas.className='spark-canvas'; scoreWrap.appendChild(score); scoreWrap.appendChild(canvas);
+const vspan=document.createElement('div'); vspan.className='volatility'; vspan.textContent = vol!==null? `${vol}%`: '';
+const chip=document.createElement('div'); chip.className=st.cls; chip.textContent=st.label; right.appendChild(scoreWrap); right.appendChild(vspan); right.appendChild(chip);
+row.appendChild(left); row.appendChild(right); card.appendChild(row);
+const bar=document.createElement('div'); bar.className='sspi-bar'; const fill=document.createElement('div'); fill.className='sspi-fill'; fill.style.width = (isNaN(sspi)?0:sspi) + '%'; bar.appendChild(fill); card.appendChild(bar);
+card.appendChild(favBtn);
+const arr = item.sparkline_in_7d?.price?.slice(-30);
+if(arr) requestAnimationFrame(()=> drawTinySpark(canvas, arr.map(Number)) );
+rows.push({id:item.id,symbol:item.symbol.toUpperCase(),sspi,status:st.label,vol,fav: favs.includes(item.id),node:card}); }
+// sorting: favorites first, then by sspi desc
+rows.sort((a,b)=>{ if(a.fav!==b.fav) return (b.fav?1:0)-(a.fav?1:0); return (b.sspi||0)-(a.sspi||0); });
+// filter logic
+const fstr = filterRaw.trim(); function passFilter(r){ if(!fstr) return true; const s=fstr.toLowerCase(); if(s.startsWith('>')||s.startsWith('<')||s.startsWith('=')){ const op=s[0]; const val=Number(s.slice(1)); if(isNaN(val)) return r.symbol.toLowerCase().includes(s); if(op==='>') return (r.sspi||0)>val; if(op==='<') return (r.sspi||0)<val; return (r.sspi||0)===val; } return r.symbol.toLowerCase().includes(s); }
+let displayRows = rows.filter(passFilter);
+// render grid
+grid.innerHTML=''; for(const r of displayRows){ grid.appendChild(r.node); }
+// summary table
+const tbody=document.querySelector('#summaryTable tbody'); tbody.innerHTML=''; displayRows.forEach((r,idx)=>{ const emo = r.status==='High'?'🔥': r.status==='Neutral'?'⚖️':'🧊'; const tr=document.createElement('tr'); if(idx===0) tr.className='rank-1'; tr.innerHTML = `<td>${idx+1}</td><td>${r.symbol}</td><td>${r.sspi}</td><td>${emo} ${r.status}</td><td>${r.vol??''}</td><td>${r.fav? '★':'☆'}</td>`; tbody.appendChild(tr); });
+// avg and history
+const avg = Math.round((rows.reduce((a,b)=>a+(b.sspi||0),0) / Math.max(1, rows.length)));
+if(!isNaN(avg)) { pushHistory(avg); updateScaleMarker(avg); updateMood(avg); drawTrend(); }
+document.getElementById('lastUpdated').textContent = 'Last updated: ' + malaysiaTime(); }
+
+function updateScaleMarker(avg){ const m=document.getElementById('marker'); const d=document.getElementById('markerDot'); if(isNaN(avg)){ m.style.display='none'; return; } m.style.display='block'; m.style.left = Math.max(0,Math.min(100,avg)) + '%'; d.textContent = avg }
+function updateMood(avg){ const mood = avg>=70? '🔥 Bullish Tightness' : avg>=40? '⚖️ Neutral' : '🧊 Loose Supply'; document.getElementById('moodBar').textContent = 'Market Mood: ' + mood }
+
+// sidebar controls
+const sidebar = document.getElementById('sidebar'); const backdrop=document.getElementById('sidebarBackdrop'); const settingsBtn=document.getElementById('settingsBtn'); const closeSettings=document.getElementById('closeSettings'); const historyLengthSel=document.getElementById('historyLength'); const fngSwitch=document.getElementById('fngSwitch');
+function openSidebar(){ sidebar.classList.add('open'); backdrop.style.display='block'; sidebar.setAttribute('aria-hidden','false'); }
+function closeSidebar(){ sidebar.classList.remove('open'); backdrop.style.display='none'; sidebar.setAttribute('aria-hidden','true'); }
+settingsBtn.addEventListener('click',()=>{ // populate controls
+ historyLengthSel.value = cfg.historyLength || 10; if(cfg.fetchFNG) fngSwitch.classList.add('on'); else fngSwitch.classList.remove('on'); openSidebar(); });
+closeSettings.addEventListener('click',closeSidebar); backdrop.addEventListener('click',closeSidebar);
+// toggle switch behavior
+fngSwitch.addEventListener('click',()=>{ fngSwitch.classList.toggle('on'); const val = fngSwitch.classList.contains('on'); cfg.fetchFNG = !!val; saveCfg(); // update context immediately
+ fetchContext().then(ctx=>{ if(ctx) document.getElementById('contextBar').innerHTML = `🌐 <span title="Total market cap across all cryptocurrencies in USD, shown in billions">${ctx.totalMarketBillion}B</span> &nbsp;•&nbsp; BTC.D <span title="Bitcoin market cap dominance (percentage)">${ctx.btcDominance}%</span> &nbsp;•&nbsp; <span class=\"tooltip\">F&amp;G <span class=\"tooltiptext\">Fear &amp; Greed index (0-100). Low = extreme fear (potential buying opportunities). High = extreme greed.</span> <strong>${ctx.fng??'n/a'}</strong></span>`; else document.getElementById('contextBar').textContent='Context: unavailable'; }); });
+historyLengthSel.addEventListener('change',()=>{ cfg.historyLength = Number(historyLengthSel.value||10); saveCfg(); // trim history if needed
+ const hist = JSON.parse(localStorage.getItem(LS_HISTORY)||'[]'); while(hist.length > (cfg.historyLength||10)) hist.shift(); localStorage.setItem(LS_HISTORY,JSON.stringify(hist)); drawTrend(); });
+
+// interactions
+document.getElementById('themeToggle').addEventListener('click',()=>{ document.body.classList.toggle('dark'); cfg.theme = document.body.classList.contains('dark')? 'dark':'light'; saveCfg(); });
+document.getElementById('refreshNow').addEventListener('click', ()=> loadDataAndRender()); document.getElementById('refreshSelect').value = cfg.refresh || DEFAULT_REFRESH; document.getElementById('refreshSelect').addEventListener('change', (e)=>{ cfg.refresh = Number(e.target.value); saveCfg(); if(refreshTimer) clearInterval(refreshTimer); refreshTimer = setInterval(loadDataAndRender, cfg.refresh*60*1000); });
+document.getElementById('filterInput').addEventListener('input', ()=> loadDataAndRender());
+
+// init
+(function init(){ if(cfg.theme==='dark') document.body.classList.add('dark'); if(refreshTimer) clearInterval(refreshTimer); refreshTimer = setInterval(loadDataAndRender, (cfg.refresh||DEFAULT_REFRESH)*60*1000); loadDataAndRender(); })();
+</script>
+</body>
+</html>
