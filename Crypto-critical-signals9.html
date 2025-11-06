@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Crypto Signals — v7.1 (GitHub Fixed)</title>
+<meta name="description" content="Compact crypto dashboard with RSI/MACD/EMA, sparklines, tooltips, pulse, details, theme toggle. GitHub Pages friendly." />
+<style>
+:root{
+  --bg:#0B1228; --card:rgba(255,255,255,0.06); --muted:#98a0b3; --text:#f0f4fa; --accent:#8b5cf6;
+  --success:#10b981; --danger:#ef4444; --neutral:#6b7280; --radius:10px; --small:13px;
+  font-family:Inter,system-ui,Roboto,Arial,sans-serif; -webkit-font-smoothing:antialiased;
+}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(180deg,var(--bg) 0%, #071024 70%);color:var(--text);font-size:13px}
+.app{max-width:1000px;margin:10px auto;padding:10px}
+.header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.brand{display:flex;align-items:center;gap:10px}
+.logo{width:36px;height:36px;border-radius:6px;background:linear-gradient(135deg,var(--accent),#3b82f6);display:flex;align-items:center;justify-content:center;font-weight:800}
+.title{line-height:1}
+.h1{font-size:15px;margin:0}
+.sub{font-size:12px;color:var(--muted);margin:0}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.control{background:var(--card);padding:6px 8px;border-radius:8px;font-size:13px;border:1px solid rgba(255,255,255,0.03)}
+.btn{padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text);cursor:pointer}
+.card{background:var(--card);padding:8px;border-radius:12px;box-shadow:0 8px 30px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
+.table-wrap{overflow:auto;border-radius:8px}
+table{width:100%;border-collapse:collapse;font-size:var(--small)}
+thead th{position:sticky;top:0;background:linear-gradient(180deg,rgba(11,18,40,0.92),rgba(11,18,40,0.88));padding:8px 6px;text-align:left;color:var(--muted);font-size:12px;cursor:pointer}
+td,th{padding:6px;border-bottom:1px solid rgba(255,255,255,0.03);vertical-align:middle}
+tbody tr{transition:background .14s}
+tbody tr:hover{background:rgba(255,255,255,0.03)}
+.buy-row{background:linear-gradient(90deg, rgba(16,185,129,0.03), transparent)}
+.sell-row{background:linear-gradient(90deg, rgba(239,68,68,0.03), transparent)}
+.pair{font-weight:700;font-size:13px}
+.price{font-size:13px}
+.spark{width:84px;height:28px;border-radius:6px;overflow:hidden;box-shadow:0 6px 16px rgba(2,6,23,0.55)}
+.sig-wrap{display:flex;align-items:center;gap:6px}
+.badge{padding:4px 8px;border-radius:999px;font-weight:700;font-size:12px;white-space:nowrap}
+.sig-buy{background:linear-gradient(90deg,var(--success),#34d399);color:#012}
+.sig-sell{background:linear-gradient(90deg,var(--danger),#fb7185);color:#fff}
+.sig-hold{background:#334155;color:var(--muted)}
+.icons{display:inline-flex;gap:6px;align-items:center;margin-left:6px;font-size:14px}
+.icon{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;line-height:1;cursor:pointer;user-select:none;transition:transform .14s,box-shadow .14s}
+.icon:hover{transform:scale(1.08)}
+.trend{font-size:12px;padding:3px 8px;border-radius:8px}
+.trend-up{background:linear-gradient(90deg,#bbf7d0,#34d399);-webkit-background-clip:text;color:transparent}
+.trend-down{background:linear-gradient(90deg,#feb2b2,#fb7185);-webkit-background-clip:text;color:transparent}
+.trend-side{color:var(--neutral)}
+.conf-bar{height:6px;border-radius:5px;margin-top:6px;background:rgba(255,255,255,0.05);overflow:hidden}
+.conf-fill{height:6px;border-radius:5px}
+@keyframes pulse-green{0%{box-shadow:0 0 0 0 rgba(16,185,129,0.6)}50%{box-shadow:0 0 0 6px rgba(16,185,129,0.12)}100%{box-shadow:0 0 0 0 rgba(16,185,129,0)}}
+@keyframes pulse-red{0%{box-shadow:0 0 0 0 rgba(239,68,68,0.6)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0.12)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}
+.pulse-buy{animation:pulse-green 1s ease}
+.pulse-sell{animation:pulse-red 1s ease}
+.status-pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;font-weight:700;font-size:13px;color:#000}
+.status-live{background:#34d399;color:#022c22}
+.status-connecting{background:#fbbf24;color:#422b00}
+.status-offline{background:#fb7185;color:#3b0000}
+@media(max-width:520px){
+  .spark{width:64px;height:24px}
+  thead th:nth-child(6),td:nth-child(6){display:none}
+  .icons{gap:4px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="brand">
+      <div class="logo">CS</div>
+      <div class="title"><div class="h1">Crypto Signals — v7.1</div><div class="sub">RSI · MACD · EMA · GitHub-ready</div></div>
+    </div>
+    <div class="controls">
+      <div class="control">
+        <label>Interval:
+          <select id="intervalSelect" style="background:transparent;border:none;color:var(--text);">
+            <option value="15m">15m</option><option value="1h" selected>1h</option><option value="4h">4h</option><option value="1d">1d</option>
+          </select>
+        </label>
+      </div>
+      <div class="control">
+        <label>Show:
+          <select id="showSelect" style="background:transparent;border:none;color:var(--text);">
+            <option value="ALL">All</option><option value="BUY">BUY</option><option value="SELL">SELL</option>
+          </select>
+        </label>
+      </div>
+      <div style="display:inline-flex;gap:8px;align-items:center">
+        <div id="statusPill" class="status-pill status-connecting">🟠 Connecting — Fetching data...</div>
+        <button id="refreshBtn" class="btn">🔄 Refresh</button>
+      </div>
+    </div>
+  </div>
+
+  <main class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <strong>Market Signals</strong>
+      <div style="font-size:12px;color:var(--muted)">Last checked: <span id="updatedAt">—</span></div>
+    </div>
+
+    <div class="table-wrap">
+      <table id="signalTable">
+        <thead>
+          <tr>
+            <th data-col="pair">Pair</th>
+            <th data-col="price">Price</th>
+            <th>Spark</th>
+            <th data-col="signal">Signal</th>
+            <th data-col="confidence">Conf</th>
+            <th data-col="trend">Trend</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div style="text-align:right;font-size:12px;color:var(--muted);margin-top:6px">
+      <span id="rowCount">0</span> pairs loaded
+    </div>
+  </main>
+</div>
+
+<script>
+const PAIRS=['BTC/USDT','ETH/USDT','XRP/USDT','SOL/USDT','ADA/USDT','AVAX/USDT','DOGE/USDT','LINK/USDT','DOT/USDT','ATOM/USDT','UNI/USDT','HBAR/USDT','RENDER/USDT','SHIB/USDT'];
+const state={interval:'1h',show:'ALL',maShort:12,maLong:26,macdSignal:9,rsiLen:14};
+let rows=[],sortCol='confidence',sortAsc=false;
+const tbody=document.querySelector('#signalTable tbody');
+const updatedAt=document.getElementById('updatedAt');
+const rowCount=document.getElementById('rowCount');
+const statusPill=document.getElementById('statusPill');
+const intervalSelect=document.getElementById('intervalSelect');
+const showSelect=document.getElementById('showSelect');
+const refreshBtn=document.getElementById('refreshBtn');
+
+function ema(vals,p){if(vals.length<p)return null;const k=2/(p+1);let e=vals.slice(0,p).reduce((a,b)=>a+b,0)/p;for(let i=p;i<vals.length;i++)e=(vals[i]-e)*k+e;return e;}
+function computeMACD(v){if(v.length<35)return{macd:null,signalLine:null};const s=12,l=26;const macd=[];for(let i=l;i<v.length;i++){const es=ema(v.slice(0,i+1),s),el=ema(v.slice(0,i+1),l);macd.push(es-el);}return{macd:macd.at(-1),signalLine:ema(macd,9)};}
+function computeRSI(v,l=14){if(v.length<l+1)return null;let g=0,d=0;for(let i=v.length-l;i<v.length;i++){const diff=v[i]-v[i-1];if(diff>0)g+=diff;else d+=-diff;}const rs=g/(d||1e-10);return Math.round((100-100/(1+rs))*100)/100;}
+function setStatus(c,t){statusPill.className='status-pill '+c;statusPill.textContent=t;}
+
+async function fetchKlines(sym,interval,limit=100){
+  try{
+    const url=`https://api.binance.com/api/v3/klines?symbol=${sym}&interval=${interval}&limit=${limit}`;
+    const proxy=`https://corsproxy.io/?${encodeURIComponent(url)}`;
+    const res=await fetch(proxy);
+    const json=await res.json();
+    return json.map(k=>+k[4]);
+  }catch(e){return [];}
+}
+
+function calcSignal(c){if(!c.length)return{signal:'HOLD',confidence:5,trend:'—'};const e1=ema(c,12),e2=ema(c,26),m=computeMACD(c),r=computeRSI(c);let sig='HOLD';if(m.macd>m.signalLine&&e1>e2&&r<70)sig='BUY';else if(m.macd<m.signalLine&&e1<e2&&r>30)sig='SELL';const conf=Math.round(Math.abs(e1-e2)/e2*200);const tr=c.at(-1)>c[0]?'Uptrend':c.at(-1)<c[0]?'Downtrend':'Sideways';return{signal:sig,confidence:conf,trend:tr,rsi:r,macd:m.macd,emaS:e1,emaL:e2};}
+
+function drawSpark(c,v){if(!c)return;const ctx=c.getContext('2d');const w=c.width=c.clientWidth*devicePixelRatio,h=c.height=c.clientHeight*devicePixelRatio;const min=Math.min(...v),max=Math.max(...v),range=max-min||1;color=v.at(-1)>v[0]?'#10b981':'#ef4444';ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=2*devicePixelRatio;v.forEach((p,i)=>{const x=i/(v.length-1)*w,y=h-(p-min)/range*h;i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();}
+
+function render(){let d=rows.filter(r=>state.show==='ALL'||r.signal===state.show);d.sort((a,b)=>{let va=a[sortCol],vb=b[sortCol];if(['pair','signal','trend'].includes(sortCol)){va=String(va);vb=String(vb);return sortAsc?va.localeCompare(vb):vb.localeCompare(va);}return sortAsc?va-vb:vb-va;});tbody.innerHTML='';d.forEach(r=>{const tr=document.createElement('tr');if(r.signal==='BUY')tr.classList.add('buy-row');if(r.signal==='SELL')tr.classList.add('sell-row');const cls=r.signal==='BUY'?'sig-buy':r.signal==='SELL'?'sig-sell':'sig-hold';tr.innerHTML=`<td>${r.pair}</td><td>${r.price?.toLocaleString()||'—'}</td><td><canvas class="spark" id="sp_${r.symbol}"></canvas></td><td><span class="badge ${cls}">${r.signal}</span></td><td>${r.confidence}%</td><td><div class="trend ${r.trend==='Uptrend'?'trend-up':r.trend==='Downtrend'?'trend-down':'trend-side'}">${r.trend}</div></td>`;tbody.appendChild(tr);drawSpark(tr.querySelector('canvas'),r.closes.slice(-40));});rowCount.textContent=d.length;}
+
+async function refresh(){setStatus('status-connecting','🟠 Connecting — Fetching data...');refreshBtn.disabled=true;const interval=intervalSelect.value;const res=await Promise.all(PAIRS.map(async p=>{const s=p.replace('/','');const c=await fetchKlines(s,interval);const sig=calcSignal(c);return{pair:p,symbol:s,price:c.at(-1),closes:c,...sig};}));rows=res;render();const now=new Date().toLocaleTimeString();setStatus('status-live',`🟢 Live — Binance data loaded · ${now}`);updatedAt.textContent=now;refreshBtn.disabled=false;}
+
+document.querySelectorAll('th[data-col]').forEach(th=>th.addEventListener('click',()=>{const c=th.dataset.col;if(sortCol===c)sortAsc=!sortAsc;else{sortCol=c;sortAsc=true;}render();}));
+showSelect.addEventListener('change',()=>{state.show=showSelect.value;render();});
+intervalSelect.addEventListener('change',refresh);
+refreshBtn.addEventListener('click',refresh);
+setInterval(refresh,30*60*1000);
+refresh();
+</script>
+</body>
+</html>
