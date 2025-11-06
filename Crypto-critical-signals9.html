@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Crypto Signals — v7 (GitHub Ready)</title>
+<meta name="description" content="Compact crypto dashboard with RSI/MACD/EMA, sparklines, tooltips, pulse, details, theme toggle. GitHub Pages friendly." />
+<style>
+:root{
+  --bg:#0B1228; --card:rgba(255,255,255,0.06); --muted:#98a0b3; --text:#f0f4fa; --accent:#8b5cf6;
+  --success:#10b981; --danger:#ef4444; --neutral:#6b7280; --radius:10px; --small:13px;
+  font-family:Inter,system-ui,Roboto,Arial,sans-serif; -webkit-font-smoothing:antialiased;
+}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(180deg,var(--bg) 0%, #071024 70%);color:var(--text);font-size:13px}
+.app{max-width:1000px;margin:10px auto;padding:10px}
+.header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.brand{display:flex;align-items:center;gap:10px}
+.logo{width:36px;height:36px;border-radius:6px;background:linear-gradient(135deg,var(--accent),#3b82f6);display:flex;align-items:center;justify-content:center;font-weight:800}
+.title{line-height:1}
+.h1{font-size:15px;margin:0}
+.sub{font-size:12px;color:var(--muted);margin:0}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.control{background:var(--card);padding:6px 8px;border-radius:8px;font-size:13px;border:1px solid rgba(255,255,255,0.03)}
+.btn{padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text);cursor:pointer}
+.card{background:var(--card);padding:8px;border-radius:12px;box-shadow:0 8px 30px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
+.table-wrap{overflow:auto;border-radius:8px}
+table{width:100%;border-collapse:collapse;font-size:var(--small)}
+thead th{position:sticky;top:0;background:linear-gradient(180deg,rgba(11,18,40,0.92),rgba(11,18,40,0.88));padding:8px 6px;text-align:left;color:var(--muted);font-size:12px;cursor:pointer}
+td,th{padding:6px;border-bottom:1px solid rgba(255,255,255,0.03);vertical-align:middle}
+tbody tr{transition:background .14s}
+tbody tr:hover{background:rgba(255,255,255,0.03)}
+.buy-row{background:linear-gradient(90deg, rgba(16,185,129,0.03), transparent)}
+.sell-row{background:linear-gradient(90deg, rgba(239,68,68,0.03), transparent)}
+.pair{font-weight:700;font-size:13px}
+.price{font-size:13px}
+.spark{width:84px;height:28px;border-radius:6px;overflow:hidden;box-shadow:0 6px 16px rgba(2,6,23,0.55)}
+.sig-wrap{display:flex;align-items:center;gap:6px}
+.badge{padding:4px 8px;border-radius:999px;font-weight:700;font-size:12px;white-space:nowrap}
+.sig-buy{background:linear-gradient(90deg,var(--success),#34d399);color:#012}
+.sig-sell{background:linear-gradient(90deg,var(--danger),#fb7185);color:#fff}
+.sig-hold{background:#334155;color:var(--muted)}
+.icons{display:inline-flex;gap:6px;align-items:center;margin-left:6px;font-size:14px}
+.icon{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;line-height:1;cursor:pointer;user-select:none;transition:transform .14s,box-shadow .14s}
+.icon:hover{transform:scale(1.08)}
+.trend{font-size:12px;padding:3px 8px;border-radius:8px}
+.trend-up{background:linear-gradient(90deg,#bbf7d0,#34d399);-webkit-background-clip:text;color:transparent}
+.trend-down{background:linear-gradient(90deg,#feb2b2,#fb7185);-webkit-background-clip:text;color:transparent}
+.trend-side{color:var(--neutral)}
+.conf-bar{height:6px;border-radius:5px;margin-top:6px;background:rgba(255,255,255,0.05);overflow:hidden}
+.conf-fill{height:6px;border-radius:5px}
+
+/* pulse animations */
+@keyframes pulse-green{0%{box-shadow:0 0 0 0 rgba(16,185,129,0.6)}50%{box-shadow:0 0 0 6px rgba(16,185,129,0.12)}100%{box-shadow:0 0 0 0 rgba(16,185,129,0)}}
+@keyframes pulse-red{0%{box-shadow:0 0 0 0 rgba(239,68,68,0.6)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0.12)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}
+.pulse-buy{animation:pulse-green 1s ease}
+.pulse-sell{animation:pulse-red 1s ease}
+
+/* guide */
+.guide-toggle{width:100%;text-align:left;background:rgba(255,255,255,0.03);padding:8px;border-radius:8px;border:none;color:var(--text);cursor:pointer;margin-top:10px;font-size:13px;display:flex;justify-content:space-between;align-items:center}
+.guide{overflow:hidden;max-height:0;transition:max-height .4s ease,padding .2s}
+.guide.open{max-height:420px;padding:8px 0}
+.guide-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+@media(max-width:640px){.guide-grid{grid-template-columns:1fr}}
+.ind{background:rgba(255,255,255,0.03);padding:8px;border-radius:8px;font-size:13px}
+.ind strong{color:var(--accent);display:block;margin-bottom:6px}
+.act{display:inline-block;padding:4px 6px;border-radius:6px;margin-top:6px;font-size:12px}
+.act-buy{background:rgba(16,185,129,0.12);color:var(--success)}
+.act-sell{background:rgba(239,68,68,0.12);color:var(--danger)}
+.act-hold{background:rgba(107,114,128,0.08);color:var(--muted)}
+
+/* floating tooltip (icons) */
+.tooltip{position:fixed;pointer-events:none;z-index:9999;background:linear-gradient(180deg,rgba(0,0,0,0.92),rgba(10,10,10,0.98));border:1px solid rgba(255,255,255,0.06);padding:8px;border-radius:8px;color:var(--text);font-size:13px;box-shadow:0 12px 30px rgba(2,6,23,0.7);max-width:240px;opacity:0;transform:translateY(8px) scale(.98);transition:opacity .14s,transform .14s}
+.tooltip.show{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
+.tooltip .t-row{display:flex;justify-content:space-between;margin-bottom:6px}
+.tooltip .muted{color:var(--muted);font-size:12px}
+
+/* details row */
+.details-row{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-top:1px solid rgba(255,255,255,0.02)}
+.details-cell{padding:8px;font-size:13px;color:var(--muted)}
+.detail-grid{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.detail-item{min-width:120px}
+
+/* status pill (solid colored) */
+.status-pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;font-weight:700;font-size:13px;color:#000}
+.status-live{background:#34d399;color:#022c22}
+.status-connecting{background:#fbbf24;color:#422b00}
+.status-offline{background:#fb7185;color:#3b0000}
+
+/* responsive adjustments */
+@media(max-width:520px){
+  .spark{width:64px;height:24px}
+  thead th:nth-child(6),td:nth-child(6){display:none}
+  .icons{gap:4px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="brand">
+      <div class="logo">CS</div>
+      <div class="title"><div class="h1">Crypto Signals — v7</div><div class="sub">RSI · MACD · EMA · GitHub-ready</div></div>
+    </div>
+
+    <div class="controls" style="align-items:center;">
+      <div class="control">
+        <label style="font-size:13px">Interval:
+          <select id="intervalSelect" style="background:transparent;border:none;color:var(--text);">
+            <option value="15m">15m</option><option value="1h" selected>1h</option><option value="4h">4h</option><option value="1d">1d</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="control">
+        <label style="font-size:13px">Show:
+          <select id="showSelect" style="background:transparent;border:none;color:var(--text);">
+            <option value="ALL">All</option><option value="BUY">BUY</option><option value="SELL">SELL</option>
+          </select>
+        </label>
+      </div>
+
+      <div style="display:inline-flex;gap:8px;align-items:center">
+        <div id="statusPill" class="status-pill status-connecting">🟠 Connecting — Fetching data...</div>
+        <button id="refreshBtn" class="btn">🔄 Refresh</button>
+      </div>
+
+      <div style="margin-left:8px" class="control theme-toggle" title="Toggle Theme">
+        <button id="themeLight" class="btn" style="padding:6px 8px">Light</button>
+        <button id="themeDark" class="btn" style="padding:6px 8px">Dark</button>
+        <button id="themeAmoled" class="btn" style="padding:6px 8px">AMOLED</button>
+      </div>
+    </div>
+  </div>
+
+  <main class="card" role="main">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <strong>Market Signals</strong>
+      <div style="font-size:12px;color:var(--muted)">Last checked: <span id="updatedAt">—</span></div>
+    </div>
+
+    <div class="table-wrap">
+      <table id="signalTable" aria-label="Market signals">
+        <thead>
+          <tr>
+            <th data-col="pair">Pair</th>
+            <th data-col="price">Price</th>
+            <th>Spark</th>
+            <th data-col="signal">Signal</th>
+            <th data-col="confidence">Conf</th>
+            <th data-col="trend">Trend</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:12px;color:var(--muted)">
+      <div>Showing <span id="rowCount">0</span> pairs</div>
+      <div>Cached klines: 29 min · Tap icon for details · Click pair to expand</div>
+    </div>
+  </main>
+
+  <button class="guide-toggle" id="guideBtn" style="width:100%;margin-top:10px">ℹ️ Technical Indicator Guide <span id="guideArrow">▼</span></button>
+  <div class="guide" id="guideSection">
+    <div class="guide-grid" style="margin-top:8px">
+      <div class="ind"><strong>⚡ RSI</strong><div class="muted">Momentum (0–100)</div><div style="margin-top:6px">RSI &lt; 30 → Oversold · RSI &gt; 70 → Overbought</div><div class="act act-buy">🟢 RSI &lt; 30 → Buy</div><div class="act act-sell">🔴 RSI &gt; 70 → Sell</div></div>
+      <div class="ind"><strong>📈 MACD</strong><div class="muted">EMA difference — momentum</div><div style="margin-top:6px">MACD &gt; Signal → Bullish · MACD &lt; Signal → Bearish</div><div class="act act-buy">🟢 Cross up → Buy</div><div class="act act-sell">🔴 Cross down → Sell</div></div>
+      <div class="ind"><strong>📊 EMA</strong><div class="muted">Short vs Long EMA</div><div style="margin-top:6px">Short &gt; Long → Uptrend · Short &lt; Long → Downtrend</div><div class="act act-buy">🟢 Short &gt; Long → Uptrend</div><div class="act act-sell">🔴 Short &lt; Long → Downtrend</div></div>
+      <div class="ind"><strong>🎯 Confidence</strong><div class="muted">Composite 0–99</div><div style="margin-top:6px">Higher = stronger alignment</div><div class="act act-buy">🟢 ≥80 → Strong Buy</div><div class="act act-sell">🔴 ≤20 → Strong Sell</div></div>
+    </div>
+  </div>
+
+  <!-- floating tooltip for icons -->
+  <div id="iconTooltip" class="tooltip" role="tooltip" aria-hidden="true"></div>
+</div>
+
+<script>
+/* =========================
+   Config & state
+   ========================= */
+const PAIRS=['BTC/USDT','ETH/USDT','XRP/USDT','SOL/USDT','ADA/USDT','AVAX/USDT','DOGE/USDT','LINK/USDT','DOT/USDT','ATOM/USDT','UNI/USDT','HBAR/USDT','RENDER/USDT','SHIB/USDT'];
+const state = { interval: localStorage.getItem('v7_interval') || '1h', show: localStorage.getItem('v7_show') || 'ALL', maShort:12, maLong:26, macdSignal:9, rsiLen:14, cacheTTL:29*60*1000 };
+let rows = [], prevSignals = {}; // prevSignals keyed by symbol
+let sortCol = 'confidence', sortAsc = false;
+const tbody = document.querySelector('#signalTable tbody');
+const updatedAt = document.getElementById('updatedAt');
+const rowCount = document.getElementById('rowCount');
+const intervalSelect = document.getElementById('intervalSelect');
+const showSelect = document.getElementById('showSelect');
+const statusPill = document.getElementById('statusPill');
+const iconTooltip = document.getElementById('iconTooltip');
+const refreshBtn = document.getElementById('refreshBtn');
+const guideBtn = document.getElementById('guideBtn');
+const guideSection = document.getElementById('guideSection');
+const guideArrow = document.getElementById('guideArrow');
+const themeLight = document.getElementById('themeLight');
+const themeDark = document.getElementById('themeDark');
+const themeAmoled = document.getElementById('themeAmoled');
+
+intervalSelect.value = state.interval;
+showSelect.value = state.show;
+
+/* =========================
+   Helpers: EMA, MACD, RSI
+   ========================= */
+function ema(values, period){
+  if(!values || values.length < period) return null;
+  const k = 2/(period+1);
+  let e = values.slice(0, period).reduce((s,v)=>s+v,0)/period;
+  for(let i = period; i < values.length; i++) e = (values[i]-e)*k + e;
+  return e;
+}
+function computeMACD(values, short=12, long=26, signal=9){
+  if(!values || values.length < long + signal) return { macd: null, signalLine: null };
+  const macdSeries = [];
+  for(let i = long; i < values.length; i++){
+    const slice = values.slice(0, i+1);
+    const es = ema(slice, short), el = ema(slice, long);
+    macdSeries.push((es !== null && el !== null) ? (es - el) : 0);
+  }
+  return { macd: macdSeries.at(-1), signalLine: ema(macdSeries, signal) };
+}
+function computeRSI(values, len=14){
+  if(!values || values.length < len + 1) return null;
+  let gains=0, losses=0;
+  for(let i = values.length - len; i < values.length; i++){
+    const d = values[i] - values[i-1];
+    if(d > 0) gains += d; else losses += Math.abs(d);
+  }
+  const avgG = gains / len, avgL = losses / len;
+  if(avgG + avgL === 0) return 50;
+  const rs = avgG / (avgL || 1e-10);
+  const rsi = 100 - (100/(1+rs));
+  return Math.round(rsi * 100) / 100;
+}
+
+/* =========================
+   localStorage cache
+   ========================= */
+function cacheKey(sym,interval){ return `v7:klines:${sym}:${interval}`; }
+function loadCache(sym,interval){
+  try{
+    const raw = localStorage.getItem(cacheKey(sym,interval));
+    if(!raw) return null;
+    const obj = JSON.parse(raw);
+    if(Date.now() - obj.t > state.cacheTTL) return null;
+    return obj.data;
+  }catch(e){ return null; }
+}
+function saveCache(sym,interval,data){
+  try{ localStorage.setItem(cacheKey(sym,interval), JSON.stringify({ t: Date.now(), data })); }catch(e){}
+}
+
+/* =========================
+   Fetch klines (AllOrigins proxy for GitHub Pages)
+   ========================= */
+async function fetchKlines(symbol, interval, limit=100){
+  const cached = loadCache(symbol, interval);
+  if(cached) return cached;
+  try{
+    const binanceUrl = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+    const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(binanceUrl)}`;
+    const res = await fetch(proxy);
+    const json = await res.json();
+    const closes = json.map(k => Number(k[4]));
+    saveCache(symbol, interval, closes);
+    return closes;
+  }catch(e){
+    console.warn('fetchKlines error', e);
+    return [];
+  }
+}
+
+/* =========================
+   Signal calculation
+   ========================= */
+function calculateSignal(closes){
+  if(!closes || closes.length === 0) return { signal:'HOLD', confidence:5, trend:'—', rsi:null, macd:null, macdSignal:null, emaS:null, emaL:null };
+  const emaS = ema(closes, state.maShort);
+  const emaL = ema(closes, state.maLong);
+  const mac = computeMACD(closes, state.maShort, state.maLong, state.macdSignal);
+  const rsi = computeRSI(closes, state.rsiLen);
+  let signal = 'HOLD';
+  if(mac.macd !== null && mac.signalLine !== null && emaS !== null && emaL !== null){
+    if(mac.macd > mac.signalLine && emaS > emaL && (rsi === null || rsi < 70)) signal = 'BUY';
+    else if(mac.macd < mac.signalLine && emaS < emaL && (rsi === null || rsi > 30)) signal = 'SELL';
+  }
+  const diff = Math.abs((emaS || 0) - (emaL || 0)) / (Math.abs(emaL) || 1);
+  const confidence = Math.max(5, Math.min(99, Math.round(diff * 200 + (rsi ? Math.abs(50 - rsi) / 50 * 30 : 0))));
+  const tw = closes.slice(-5);
+  const trend = tw.length >= 2 ? (tw[tw.length-1] > tw[0] ? 'Uptrend' : tw[tw.length-1] < tw[0] ? 'Downtrend' : 'Sideways') : '—';
+  return { signal, confidence, trend, rsi, macd: mac.macd, macdSignal: mac.signalLine, emaS, emaL };
+}
+
+/* =========================
+   Sparkline draw
+   ========================= */
+function drawSpark(canvas, values){
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width = Math.max(1, canvas.clientWidth * devicePixelRatio);
+  const h = canvas.height = Math.max(1, canvas.clientHeight * devicePixelRatio);
+  ctx.clearRect(0,0,w,h);
+  if(!values || values.length === 0) return;
+  const min = Math.min(...values), max = Math.max(...values), range = max - min || 1;
+  const up = values[values.length - 1] >= values[0];
+  const color = up ? '#10b981' : '#ef4444';
+  const grad = ctx.createLinearGradient(0,0,0,h);
+  grad.addColorStop(0, color + '60'); grad.addColorStop(1, 'transparent');
+  ctx.beginPath(); ctx.lineWidth = 2 * devicePixelRatio; ctx.strokeStyle = color;
+  values.forEach((v,i)=>{ const x = (i/(values.length-1))*w; const y = h - ((v - min)/range) * h; i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y); });
+  ctx.stroke(); ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+}
+
+/* =========================
+   Render rows & sorting
+   ========================= */
+function renderRows(){
+  const show = showSelect.value;
+  let list = rows.slice();
+  list = list.filter(r => show === 'ALL' || r.signal === show);
+
+  // sort
+  list.sort((a,b)=>{
+    let va = a[sortCol], vb = b[sortCol];
+    if(sortCol === 'pair' || sortCol === 'signal' || sortCol === 'trend'){
+      va = String(va || '').toUpperCase(); vb = String(vb || '').toUpperCase();
+      if(va < vb) return sortAsc ? -1 : 1;
+      if(va > vb) return sortAsc ? 1 : -1;
+      return 0;
+    }
+    va = Number(va || 0); vb = Number(vb || 0);
+    return sortAsc ? va - vb : vb - va;
+  });
+
+  tbody.innerHTML = '';
+  list.forEach(row => {
+    const tr = document.createElement('tr');
+    if(row.signal === 'BUY') tr.classList.add('buy-row');
+    if(row.signal === 'SELL') tr.classList.add('sell-row');
+
+    // icon colors
+    const rsiColor = (row.rsi !== null) ? (row.rsi < 30 ? 'var(--success)' : row.rsi > 70 ? 'var(--danger)' : 'var(--muted)') : 'var(--muted)';
+    const macColor = (row.macd !== null && row.macdSignal !== null) ? (row.macd > row.macdSignal ? 'var(--success)' : row.macd < row.macdSignal ? 'var(--danger)' : 'var(--muted)') : 'var(--muted)';
+    const emaColor = (row.emaS !== null && row.emaL !== null) ? (row.emaS > row.emaL ? 'var(--success)' : row.emaS < row.emaL ? 'var(--danger)' : 'var(--muted)') : 'var(--muted)';
+
+    // badge class & pulse detection
+    const badgeCls = row.signal === 'BUY' ? 'sig-buy' : row.signal === 'SELL' ? 'sig-sell' : 'sig-hold';
+    const prev = prevSignals[row.symbol];
+    let pulseCls = '';
+    if(prev && prev !== row.signal) pulseCls = row.signal === 'BUY' ? 'pulse-buy' : row.signal === 'SELL' ? 'pulse-sell' : '';
+    prevSignals[row.symbol] = row.signal;
+
+    tr.innerHTML = `
+      <td class="pair" data-pair="${row.symbol}" style="cursor:pointer">${row.pair}</td>
+      <td class="price">${row.price ? Number(row.price).toLocaleString(undefined,{maximumFractionDigits:8}) : '—'}</td>
+      <td><canvas class="spark" id="sp_${row.symbol}"></canvas></td>
+      <td>
+        <div class="sig-wrap">
+          <span class="badge ${badgeCls} ${pulseCls}">${row.signal}</span>
+          <span class="icons">
+            <span class="icon" data-type="rsi" data-val="${row.rsi===null?'N/A':row.rsi.toFixed(2)}" title="RSI ${row.rsi===null?'N/A':row.rsi.toFixed(2)}">⚡</span>
+            <span class="icon" data-type="macd" data-val="${row.macd===null?'N/A':(row.macd).toExponential(5)}" title="MACD ${row.macd===null?'N/A':(row.macd).toExponential(5)}">📈</span>
+            <span class="icon" data-type="ema" data-val="${row.emaS===null||row.emaL===null?'N/A':row.emaS.toFixed(4)+' / '+row.emaL.toFixed(4)}" title="EMA ${row.emaS===null?'N/A':row.emaS.toFixed(4)} / ${row.emaL===null?'N/A':row.emaL.toFixed(4)}">📊</span>
+          </span>
+        </div>
+      </td>
+      <td>
+        ${row.confidence}%
+        <div class="conf-bar"><div class="conf-fill" style="width:${row.confidence}%;background:${row.signal==='BUY'?'var(--success)':row.signal==='SELL'?'var(--danger)':'#334155'}"></div></div>
+      </td>
+      <td><div class="trend ${row.trend==='Uptrend'?'trend-up':row.trend==='Downtrend'?'trend-down':'trend-side'}">${row.trend}</div></td>
+    `;
+    tbody.appendChild(tr);
+
+    // draw spark
+    const canvas = document.getElementById(`sp_${row.symbol}`);
+    drawSpark(canvas, (row.closes || []).slice(-40));
+
+    // row pair click toggles details
+    tr.querySelector('.pair').addEventListener('click', ()=> toggleDetails(row));
+
+    // icon tooltip handlers
+    tr.querySelectorAll('.icon').forEach(ic => {
+      ic.addEventListener('pointerenter', ev => showIconTooltip(ic, ev));
+      ic.addEventListener('pointerleave', ()=> hideIconTooltip());
+      ic.addEventListener('click', ev => { ev.stopPropagation(); showIconTooltip(ic, ev); setTimeout(hideIconTooltip,3500); });
+    });
+
+    // remove pulse class after animation ends
+    if(pulseCls){
+      const el = tr.querySelector('.badge');
+      if(el) setTimeout(()=> el.classList.remove(pulseCls), 1000);
+    }
+  });
+
+  rowCount.textContent = list.length;
+}
+
+/* =========================
+   Details row expand
+   ========================= */
+function toggleDetails(row){
+  const existing = document.querySelector(`.details-row[data-for="${row.symbol}"]`);
+  if(existing){ existing.remove(); return; }
+  document.querySelectorAll('.details-row').forEach(x=>x.remove());
+  const baseTr = Array.from(tbody.children).find(r => r.querySelector('.pair')?.dataset?.pair === row.symbol);
+  if(!baseTr) return;
+  const dr = document.createElement('tr');
+  dr.className = 'details-row';
+  dr.setAttribute('data-for', row.symbol);
+  dr.innerHTML = `<td class="details-cell" colspan="6">
+    <div class="detail-grid">
+      <div class="detail-item"><strong>${row.pair}</strong><div style="color:var(--muted)">Price: ${row.price?Number(row.price).toLocaleString(undefined,{maximumFractionDigits:8}):'—'}</div></div>
+      <div class="detail-item">RSI: <strong>${row.rsi===null?'N/A':row.rsi.toFixed(2)}</strong></div>
+      <div class="detail-item">MACD: <strong>${row.macd===null?'N/A':row.macd.toExponential(5)}</strong></div>
+      <div class="detail-item">Signal: <strong>${row.macdSignal===null?'N/A':row.macdSignal.toExponential(5)}</strong></div>
+      <div class="detail-item">EMA${state.maShort}: <strong>${row.emaS===null?'N/A':row.emaS.toFixed(4)}</strong></div>
+      <div class="detail-item">EMA${state.maLong}: <strong>${row.emaL===null?'N/A':row.emaL.toFixed(4)}</strong></div>
+      <div class="detail-item">Trend: <strong>${row.trend}</strong></div>
+      <div class="detail-item">Confidence: <strong>${row.confidence}%</strong></div>
+    </div>
+  </td>`;
+  baseTr.insertAdjacentElement('afterend', dr);
+}
+
+/* =========================
+   Icon tooltip (Option B)
+   ========================= */
+let iconTooltipTimer = null;
+function showIconTooltip(el, ev){
+  if(iconTooltipTimer) clearTimeout(iconTooltipTimer);
+  const type = el.dataset.type;
+  const val = el.dataset.val || 'N/A';
+  let interp = '';
+  if(type === 'rsi'){ const n = parseFloat(val); interp = isNaN(n)?'No RSI': n < 30 ? 'Oversold — possible Buy' : n > 70 ? 'Overbought — possible Sell' : 'Neutral'; }
+  else if(type === 'macd'){ interp = val === 'N/A' ? 'No MACD' : 'MACD value'; }
+  else if(type === 'ema'){ interp = 'ShortEMA / LongEMA'; }
+  iconTooltip.innerHTML = `<div class="t-row"><div style="font-weight:700">${type.toUpperCase()}</div><div class="muted">${val}</div></div><div class="t-row"><div class="muted">${interp}</div></div>`;
+  const r = el.getBoundingClientRect();
+  const tt = iconTooltip.getBoundingClientRect();
+  let left = r.left + r.width/2 - tt.width/2;
+  if(left < 8) left = 8;
+  if(left + tt.width > window.innerWidth - 8) left = window.innerWidth - tt.width - 8;
+  let top = r.top - tt.height - 10;
+  if(top < 8) top = r.bottom + 10;
+  iconTooltip.style.left = left + 'px';
+  iconTooltip.style.top = top + 'px';
+  iconTooltip.classList.add('show');
+  iconTooltip.setAttribute('aria-hidden','false');
+}
+function hideIconTooltip(){ if(iconTooltipTimer) clearTimeout(iconTooltipTimer); iconTooltipTimer = setTimeout(()=>{ iconTooltip.classList.remove('show'); iconTooltip.setAttribute('aria-hidden','true'); }, 120); }
+
+/* =========================
+   Sorting wiring
+   ========================= */
+document.querySelectorAll('thead th[data-col]').forEach(th => {
+  th.addEventListener('click', ()=> {
+    const c = th.dataset.col;
+    if(sortCol === c) sortAsc = !sortAsc;
+    else { sortCol = c; sortAsc = true; }
+    renderRows();
+  });
+});
+
+/* =========================
+   Guide toggle
+   ========================= */
+guideBtn.addEventListener('click', ()=> {
+  guideSection.classList.toggle('open');
+  guideArrow.textContent = guideSection.classList.contains('open') ? '▲' : '▼';
+});
+
+/* =========================
+   Theme toggle
+   ========================= */
+function applyTheme(name){
+  if(name === 'AMOLED'){
+    document.documentElement.style.setProperty('--bg','#000000');
+    document.documentElement.style.setProperty('--card','rgba(255,255,255,0.03)');
+    document.documentElement.style.setProperty('--text','#ffffff');
+    document.documentElement.style.setProperty('--muted','#9aa3b2');
+  } else if(name === 'LIGHT'){
+    document.documentElement.style.setProperty('--bg','#f6f7fb');
+    document.documentElement.style.setProperty('--card','rgba(8,12,24,0.06)');
+    document.documentElement.style.setProperty('--text','#081226');
+    document.documentElement.style.setProperty('--muted','#53607a');
+  } else {
+    document.documentElement.style.setProperty('--bg','#0B1228');
+    document.documentElement.style.setProperty('--card','rgba(255,255,255,0.06)');
+    document.documentElement.style.setProperty('--text','#f0f4fa');
+    document.documentElement.style.setProperty('--muted','#98a0b3');
+  }
+  localStorage.setItem('v7_theme', name);
+}
+document.getElementById('themeLight').addEventListener('click', ()=> applyTheme('LIGHT'));
+document.getElementById('themeDark').addEventListener('click', ()=> applyTheme('DARK'));
+document.getElementById('themeAmoled').addEventListener('click', ()=> applyTheme('AMOLED'));
+applyTheme(localStorage.getItem('v7_theme') || 'DARK');
+
+/* =========================
+   Status pill helpers
+   ========================= */
+function setStatusConnecting(){
+  statusPill.className = 'status-pill status-connecting';
+  statusPill.textContent = '🟠 Connecting — Fetching data...';
+}
+function setStatusLive(lastTime){
+  statusPill.className = 'status-pill status-live';
+  statusPill.textContent = `🟢 Live — Binance data loaded · ${lastTime}`;
+}
+function setStatusOffline(){
+  statusPill.className = 'status-pill status-offline';
+  statusPill.textContent = '🔴 Offline — Failed to fetch';
+}
+
+/* =========================
+   Main fetch + orchestration
+   ========================= */
+async function refreshAll(){
+  try{
+    setStatusConnecting();
+    refreshBtn.disabled = true;
+    refreshBtn.textContent = 'Refreshing…';
+    const interval = intervalSelect.value;
+    localStorage.setItem('v7_interval', interval);
+
+    // fetch klines for all pairs (parallel)
+    const results = await Promise.all(PAIRS.map(async pair => {
+      const sym = pair.replace('/','');
+      try{
+        const closes = await fetchKlines(sym, interval);
+        const sig = calculateSignal(closes);
+        return { pair, symbol: sym, price: closes.length ? closes.at(-1) : null, closes, ...sig, success: closes.length > 0 };
+      }catch(e){
+        return { pair, symbol: sym, price: null, closes: [], signal:'HOLD', confidence:5, trend:'—', rsi:null, macd:null, macdSignal:null, emaS:null, emaL:null, success:false };
+      }
+    }));
+
+    rows = results.map(r => ({ pair: r.pair, symbol: r.symbol, price: r.price, closes: r.closes, signal: r.signal, confidence: r.confidence, trend: r.trend, rsi: r.rsi, macd: r.macd, macdSignal: r.macdSignal, emaS: r.emaS, emaL: r.emaL }));
+
+    const successCount = results.filter(r => r.success).length;
+    const now = new Date();
+    const nowText = now.toLocaleTimeString();
+    if(successCount > 0){
+      setStatusLive(nowText);
+      updatedAt.textContent = nowText;
+      localStorage.setItem('v7_last_success', now.toISOString());
+    } else {
+      setStatusOffline();
+    }
+
+    renderRows();
+  }catch(e){
+    console.warn('refreshAll error', e);
+    setStatusOffline();
+  }finally{
+    refreshBtn.disabled = false;
+    refreshBtn.textContent = '🔄 Refresh';
+  }
+}
+
+/* wire controls */
+refreshBtn.addEventListener('click', refreshAll);
+showSelect.addEventListener('change', ()=> { localStorage.setItem('v7_show', showSelect.value); renderRows(); });
+intervalSelect.addEventListener('change', ()=> { localStorage.setItem('v7_interval', intervalSelect.value); refreshAll(); });
+
+/* auto-refresh every 30 minutes */
+setInterval(refreshAll, 30*60*1000);
+
+/* initial load */
+(function init(){
+  // show connecting, try a cached last-success time
+  const last = localStorage.getItem('v7_last_success');
+  if(last){
+    const dt = new Date(last);
+    setStatusLive(dt.toLocaleTimeString());
+    updatedAt.textContent = dt.toLocaleTimeString();
+  } else {
+    setStatusConnecting();
+  }
+  refreshAll();
+})();
+
+</script>
+</body>
+</html>
